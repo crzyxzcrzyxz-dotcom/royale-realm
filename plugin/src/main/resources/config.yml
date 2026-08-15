@@ -1,0 +1,125 @@
+# ==========================================================
+#  BATTLE ROYALE - Configuracao principal
+# ==========================================================
+
+automatic:
+  enabled: true
+  # intervalo entre eventos automaticos (segundos)
+  interval-seconds: 1800
+  # atrasar o primeiro evento apos o start do servidor (segundos)
+  first-delay-seconds: 600
+  # so anuncia se houver pelo menos X jogadores online
+  required-online: 2
+
+match:
+  # duracao da fase de entrada (segundos) - recomendado 30 a 60
+  join-seconds: 45
+  min-players: 2
+  max-players: 60
+  # segundos em que o anuncio clicavel e reenviado
+  announce-at: [60, 45, 30, 20, 10, 5, 3, 2, 1]
+  # tempo maximo de planagem antes de forcar o pouso (segundos)
+  glide-timeout-seconds: 60
+  # tempo maximo total da partida (segundos), 0 = ilimitado
+  max-duration-seconds: 1800
+  # ao terminar, quantos segundos ate limpar e regenerar
+  end-delay-seconds: 8
+
+spectator:
+  enabled: true
+  # o jogador eliminado escolhe entre assistir ou voltar ao SMP
+  ask-player: true
+  # se ele nao escolher em X segundos, volta ao SMP
+  choice-seconds: 15
+
+commands:
+  # comandos permitidos durante a partida (sem a barra)
+  whitelist: [br, battleroyale, brl, msg, tell, r, help]
+  # jogadores com esta permissao ignoram o bloqueio
+  bypass-permission: battleroyale.bypass
+
+kit:
+  enabled: true
+  items:
+    - "IRON_PICKAXE:1"
+    - "OAK_PLANKS:64"
+    - "BREAD:32"
+
+elytra:
+  # altura minima abaixo da qual o pouso e detectado por contato com o chao
+  remove-on-land: true
+  # impedir dano de queda do primeiro pouso
+  cancel-first-fall-damage: true
+  # impulso inicial ao saltar do onibus
+  jump-boost: 0.4
+
+bus:
+  # blocos por tick que o onibus percorre (usado se a duracao nao for definida no mapa)
+  default-speed: 0.9
+  default-height: 160
+  # material exibido como "onibus"
+  block: LIGHT_BLUE_CONCRETE
+  # jogadores saltam agachando (SHIFT) ou clicando com o botao direito
+  jump-on-sneak: true
+  # segundos apos o fim da rota ate ejetar quem sobrou
+  force-eject: true
+
+zone:
+  # dano por segundo fora da zona, por fase (usa o ultimo valor se faltar)
+  damage-per-phase: [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
+  # atualizar bossbar/actionbar
+  bossbar: true
+  actionbar: true
+  particles: true
+  particle: CLOUD
+
+border:
+  # o que fazer quando o jogador sai da area maxima do mapa
+  # TELEPORT ou ELIMINATE
+  action: TELEPORT
+  warn-distance: 20
+
+loot:
+  # slots ocupados por bau
+  min-slots: 3
+  max-slots: 7
+  # multiplicador de chance de raridade alta em baus "quentes" (hot-zones do mapa)
+  hot-zone-multiplier: 2.0
+  # raio (blocos) considerado hot zone ao redor dos pontos definidos no mapa
+  hot-zone-radius: 25
+  chances:
+    COMMON: 50.0
+    UNCOMMON: 27.0
+    RARE: 15.0
+    EPIC: 6.0
+    LEGENDARY: 2.0
+
+regeneration:
+  enabled: true
+  # blocos restaurados por tick (menor = mais leve)
+  blocks-per-tick: 400
+  # remover itens dropados e entidades criadas pelos jogadores
+  clear-drops: true
+  # raio de varredura de baus a partir do centro do mapa (blocos)
+  chest-scan-radius: 220
+  # chunks varridos por tick durante o scan
+  chunks-per-tick: 8
+
+sounds:
+  announce: "ui.toast.challenge_complete"
+  join: "entity.experience_orb.pickup"
+  countdown: "block.note_block.pling"
+  bus-start: "entity.ender_dragon.flap"
+  jump: "entity.bat.takeoff"
+  land: "entity.player.big_fall"
+  zone-shrink: "entity.wither.spawn"
+  storm-damage: "entity.player.hurt"
+  elimination: "entity.lightning_bolt.thunder"
+  victory: "ui.toast.challenge_complete"
+  grappler: "entity.fishing_bobber.throw"
+  grappler-pull: "entity.enderman.teleport"
+  error: "block.note_block.bass"
+
+storage:
+  # segundos entre gravacoes de seguranca dos dados salvos
+  autosave-seconds: 60

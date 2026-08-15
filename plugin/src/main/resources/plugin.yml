@@ -1,0 +1,36 @@
+name: BattleRoyale
+version: ${project.version}
+main: com.smp.br.BattleRoyalePlugin
+api-version: '1.21'
+author: SMP
+description: Battle Royale completo para servidores SMP (Paper 1.21+)
+commands:
+  br:
+    description: Comandos do Battle Royale
+    usage: /br help
+    aliases: [battleroyale, brl]
+permissions:
+  battleroyale.admin:
+    description: Acesso total aos comandos administrativos
+    default: op
+    children:
+      battleroyale.start: true
+      battleroyale.stop: true
+      battleroyale.reload: true
+      battleroyale.setup: true
+      battleroyale.spectate: true
+      battleroyale.bypass: true
+  battleroyale.play:
+    default: true
+  battleroyale.start:
+    default: op
+  battleroyale.stop:
+    default: op
+  battleroyale.reload:
+    default: op
+  battleroyale.setup:
+    default: op
+  battleroyale.spectate:
+    default: true
+  battleroyale.bypass:
+    default: op
