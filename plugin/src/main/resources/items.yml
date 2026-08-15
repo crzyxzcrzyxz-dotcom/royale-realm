@@ -1,0 +1,66 @@
+# ==========================================================
+#  ITENS ESPECIAIS
+# ==========================================================
+grappler:
+  enabled: true
+  material: FISHING_ROD
+  name: "&b&lGRAPPLER"
+  lore:
+    - "&7Clique com o botao direito para se lancar."
+    - "&7Alcance: &f%range% blocos"
+    - "&7Usos: &f%uses%"
+  range: 28
+  uses: 12
+  cooldown-ticks: 30
+  power: 1.35
+  vertical-bonus: 0.35
+  # nao permite atravessar paredes (raytrace bloqueado por blocos solidos)
+  require-line-of-sight: true
+
+specials:
+  medkit:
+    enabled: true
+    material: GHAST_TEAR
+    name: "&d&lMEDKIT"
+    lore: ["&7Cura totalmente apos 3 segundos parado."]
+    heal: 20.0
+    channel-ticks: 60
+    cooldown-ticks: 40
+  shield-potion:
+    enabled: true
+    material: HONEY_BOTTLE
+    name: "&e&lPOCAO DE ESCUDO"
+    lore: ["&7Concede absorcao e resistencia."]
+    absorption-seconds: 90
+    resistance-seconds: 8
+    cooldown-ticks: 40
+  launch-pad:
+    enabled: true
+    material: SLIME_BLOCK
+    name: "&a&lLAUNCH PAD"
+    lore: ["&7Coloque no chao e pise para ser lancado."]
+    power: 1.6
+    forward: 0.9
+  smoke-bomb:
+    enabled: true
+    material: SNOWBALL
+    name: "&8&lBOMBA DE FUMACA"
+    lore: ["&7Cria uma cortina de fumaca e cegueira."]
+    radius: 5.0
+    blind-seconds: 5
+  impulse:
+    enabled: true
+    material: FIREWORK_ROCKET
+    name: "&c&lGRANADA DE IMPULSO"
+    lore: ["&7Empurra jogadores proximos."]
+    radius: 6.0
+    power: 1.8
+    cooldown-ticks: 60
+  bandage:
+    enabled: true
+    material: PAPER
+    name: "&f&lBANDAGEM"
+    lore: ["&7Regenera vida lentamente."]
+    regen-seconds: 8
+    amplifier: 1
+    cooldown-ticks: 30
