@@ -1,0 +1,49 @@
+# ==========================================================
+#  MAPAS - cada mapa possui mundo, centro, tamanho, rota do onibus e zonas
+#  Use /br setup ... dentro do jogo para preencher automaticamente.
+# ==========================================================
+rotation:
+  mode: SEQUENTIAL   # SEQUENTIAL ou RANDOM
+  order: [tilted]
+  current: 0
+
+maps:
+  tilted:
+    display-name: "&bTilted Towers"
+    world: world_br
+    enabled: true
+    # local onde os jogadores ficam durante a fase de entrada (nao e um lobby separado)
+    start:
+      x: 0.5
+      y: 100.0
+      z: 0.5
+      yaw: 0.0
+      pitch: 0.0
+    center:
+      x: 0.0
+      z: 0.0
+    # raio maximo jogavel do mapa
+    radius: 400
+    bus:
+      start: {x: -420.0, z: -420.0}
+      end: {x: 420.0, z: 420.0}
+      height: 170.0
+      speed: 0.9          # blocos por tick
+      duration-seconds: 0 # se > 0, sobrepoe a velocidade
+    zone:
+      # primeira zona
+      first:
+        x: 0.0
+        z: 0.0
+        radius: 380
+      final-radius: 8
+      phases: 6
+      # segundos parados antes de cada encolhimento
+      wait-seconds: [60, 50, 45, 40, 35, 30]
+      # segundos de encolhimento de cada fase
+      shrink-seconds: [60, 50, 45, 40, 35, 30]
+      # o quanto o centro da proxima zona pode se deslocar (0.0 a 1.0 do espaco livre)
+      drift: 0.7
+    # pontos de loot privilegiado
+    hot-zones:
+      - {x: 0.0, z: 0.0}
