@@ -1,5 +1,6 @@
 # ==========================================================
 #  BATTLE ROYALE - Configuracao principal
+#  Tudo abaixo pode ser alterado; os valores ja vem com um padrao pronto.
 # ==========================================================
 
 automatic:
@@ -12,12 +13,20 @@ automatic:
   required-online: 2
 
 match:
-  # duracao da fase de entrada (segundos) - recomendado 30 a 60
+  # duracao da fase de entrada (segundos)
   join-seconds: 45
   min-players: 2
   max-players: 60
-  # segundos em que o anuncio clicavel e reenviado
-  announce-at: [60, 45, 30, 20, 10, 5, 3, 2, 1]
+  # o anuncio completo com os botoes aparece UMA UNICA VEZ.
+  # coloque segundos aqui (ex: [30, 10]) se quiser reenviar o anuncio.
+  announce-at: []
+  # reenviar apenas os botoes [ENTRAR]/[SAIR] nestes segundos (lista vazia = nunca)
+  buttons-at: []
+  # mostrar contagem regressiva em titulo nos ultimos X segundos
+  countdown-title-seconds: 5
+  # teletransportar quem entra para o ponto de espera do mapa?
+  # false = o jogador continua exatamente onde estava ate a partida comecar
+  teleport-on-join: false
   # tempo maximo de planagem antes de forcar o pouso (segundos)
   glide-timeout-seconds: 60
   # tempo maximo total da partida (segundos), 0 = ilimitado
@@ -31,6 +40,20 @@ spectator:
   ask-player: true
   # se ele nao escolher em X segundos, volta ao SMP
   choice-seconds: 15
+
+# Para onde o jogador volta ao sair/ser eliminado/terminar a partida
+return:
+  # ORIGINAL = exatamente o bloco onde estava antes de entrar
+  # SPAWN    = spawn do mundo (ou as coordenadas abaixo)
+  mode: ORIGINAL
+  spawn:
+    # deixe world vazio para usar o spawn do mundo principal
+    world: ""
+    x: 0.5
+    y: 100.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
 
 commands:
   # comandos permitidos durante a partida (sem a barra)
@@ -46,47 +69,56 @@ kit:
     - "BREAD:32"
 
 elytra:
-  # altura minima abaixo da qual o pouso e detectado por contato com o chao
   remove-on-land: true
-  # impedir dano de queda do primeiro pouso
   cancel-first-fall-damage: true
   # impulso inicial ao saltar do onibus
   jump-boost: 0.4
 
 bus:
-  # blocos por tick que o onibus percorre (usado se a duracao nao for definida no mapa)
+  # segundos antes do fim da contagem em que os jogadores sao puxados para o onibus.
+  # o onibus JA COMECA A ANDAR neste momento (nao fica parado).
+  board-seconds: 5
+  # blocos por tick (usado se a duracao nao for definida no mapa)
   default-speed: 0.9
   default-height: 160
-  # material exibido como "onibus"
+  # tamanho do onibus (em blocos)
+  length: 13
+  width: 5
+  height-blocks: 3
+  roof: true
   block: LIGHT_BLUE_CONCRETE
-  # jogadores saltam agachando (SHIFT) ou clicando com o botao direito
+  glass-block: LIGHT_BLUE_STAINED_GLASS
+  # saltar agachando (SHIFT) - tambem funciona desmontando do assento
   jump-on-sneak: true
-  # segundos apos o fim da rota ate ejetar quem sobrou
   force-eject: true
 
 zone:
-  # dano por segundo fora da zona, por fase (usa o ultimo valor se faltar)
   damage-per-phase: [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
-  # atualizar bossbar/actionbar
   bossbar: true
   actionbar: true
   particles: true
   particle: CLOUD
+  # segundos de tolerancia depois do pouso antes da tempestade causar dano
+  grace-seconds: 10
+  # so causa dano em quem ja pousou
+  damage-only-after-landing: true
+  # margem (blocos) antes de considerar o jogador fora da zona
+  outside-tolerance: 2.0
+  # usar sempre o centro/raio do mapa como primeira zona (evita zona fora do mapa)
+  auto-first-zone: true
 
 border:
-  # o que fazer quando o jogador sai da area maxima do mapa
   # TELEPORT ou ELIMINATE
   action: TELEPORT
   warn-distance: 20
 
 loot:
-  # slots ocupados por bau
   min-slots: 3
   max-slots: 7
-  # multiplicador de chance de raridade alta em baus "quentes" (hot-zones do mapa)
   hot-zone-multiplier: 2.0
-  # raio (blocos) considerado hot zone ao redor dos pontos definidos no mapa
   hot-zone-radius: 25
+  # gerar loot ja no start do servidor, para os baus nunca ficarem vazios
+  fill-on-startup: true
   chances:
     COMMON: 50.0
     UNCOMMON: 27.0
@@ -96,18 +128,32 @@ loot:
 
 regeneration:
   enabled: true
-  # blocos restaurados por tick (menor = mais leve)
+  # resetar o mapa automaticamente ao terminar a partida
+  reset-on-end: true
   blocks-per-tick: 400
-  # remover itens dropados e entidades criadas pelos jogadores
   clear-drops: true
-  # raio de varredura de baus a partir do centro do mapa (blocos)
-  chest-scan-radius: 220
-  # chunks varridos por tick durante o scan
-  chunks-per-tick: 8
+  # raio de varredura de baus a partir do centro do mapa. 0 = usar o raio do mapa
+  chest-scan-radius: 0
+  chunks-per-tick: 12
+
+effects:
+  # efeitos visuais extras
+  join: true
+  leave: true
+  bus-trail: true
+  jump: true
+  land: true
+  elimination: true
+  lightning-on-elimination: true
+  victory-fireworks: true
+  zone-ring: true
+  # efeitos de pocao dados ao pousar (segundos)
+  landing-resistance-seconds: 3
 
 sounds:
   announce: "ui.toast.challenge_complete"
   join: "entity.experience_orb.pickup"
+  leave: "block.note_block.bass"
   countdown: "block.note_block.pling"
   bus-start: "entity.ender_dragon.flap"
   jump: "entity.bat.takeoff"
@@ -121,5 +167,4 @@ sounds:
   error: "block.note_block.bass"
 
 storage:
-  # segundos entre gravacoes de seguranca dos dados salvos
   autosave-seconds: 60
