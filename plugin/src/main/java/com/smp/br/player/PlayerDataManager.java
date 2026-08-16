@@ -128,12 +128,37 @@ public class PlayerDataManager {
         }
         try {
             snapshot.restore(player);
+            applyReturnLocation(player);
         } catch (Exception ex) {
             plugin.getLogger().severe("Falha ao restaurar " + player.getName() + ": " + ex.getMessage());
             return false;
         }
         discard(uuid);
         return true;
+    }
+
+    /**
+     * Aplica o destino configurado ao sair da partida.
+     * ORIGINAL (padrao) = o snapshot ja devolveu o jogador ao bloco onde estava.
+     * SPAWN = spawn do mundo ou as coordenadas de config.yml.
+     */
+    private void applyReturnLocation(Player player) {
+        String mode = plugin.configs().config().getString("return.mode", "ORIGINAL");
+        if (mode == null || !mode.equalsIgnoreCase("SPAWN")) return;
+        String worldName = plugin.configs().config().getString("return.spawn.world", "");
+        org.bukkit.World world = worldName == null || worldName.isEmpty() ? null : Bukkit.getWorld(worldName);
+        if (world == null) {
+            world = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
+            if (world == null) return;
+            player.teleport(world.getSpawnLocation());
+            return;
+        }
+        player.teleport(new org.bukkit.Location(world,
+                plugin.configs().config().getDouble("return.spawn.x", 0.5),
+                plugin.configs().config().getDouble("return.spawn.y", 100),
+                plugin.configs().config().getDouble("return.spawn.z", 0.5),
+                (float) plugin.configs().config().getDouble("return.spawn.yaw", 0),
+                (float) plugin.configs().config().getDouble("return.spawn.pitch", 0)));
     }
 
     /** Remove o snapshot apenas apos restauracao confirmada. */

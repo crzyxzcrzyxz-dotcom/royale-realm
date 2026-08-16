@@ -35,6 +35,7 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Locale;
@@ -122,6 +123,16 @@ public class GameListener implements Listener {
         if (match.bus().hasPassenger(event.getPlayer().getUniqueId())) {
             match.jump(event.getPlayer());
         }
+    }
+
+    /** Desmontar o assento do onibus (SHIFT) = saltar. */
+    @EventHandler
+    public void onDismount(EntityDismountEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        Match match = match();
+        if (match == null || match.state() != GameState.BUS) return;
+        if (!match.bus().hasPassenger(player.getUniqueId())) return;
+        Bukkit.getScheduler().runTask(plugin, () -> match.jump(player));
     }
 
     @EventHandler

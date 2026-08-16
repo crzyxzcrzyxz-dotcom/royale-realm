@@ -170,17 +170,22 @@ public class Match {
         }
     }
 
-    private Component buildButtons() {
-        String raw = plugin.messages().raw("announce.button");
-        String[] parts = raw.split("\\s{2,}");
-        Component join = Text.comp(parts.length > 0 ? parts[0] : "&a[ ENTRAR ]")
+    /** Dois botoes independentes: ENTRAR e SAIR. */
+    public Component buildButtons() {
+        Component join = Text.comp(plugin.messages().raw("announce.button-join"))
                 .clickEvent(ClickEvent.runCommand("/br join"))
                 .hoverEvent(HoverEvent.showText(Text.comp(plugin.messages().raw("announce.button-join-hover"))));
-        if (parts.length < 2) return join;
-        Component leave = Text.comp(parts[1])
+        Component leave = Text.comp(plugin.messages().raw("announce.button-leave"))
                 .clickEvent(ClickEvent.runCommand("/br leave"))
                 .hoverEvent(HoverEvent.showText(Text.comp(plugin.messages().raw("announce.button-leave-hover"))));
-        return join.append(Component.text("   ")).append(leave);
+        return Text.comp(plugin.messages().raw("announce.buttons-prefix"))
+                .append(join)
+                .append(Text.comp(plugin.messages().raw("announce.button-separator")))
+                .append(leave);
+    }
+
+    public void sendButtons(Player player) {
+        player.sendMessage(buildButtons());
     }
 
     public boolean join(Player player) {
@@ -203,12 +208,18 @@ public class Match {
         }
         plugin.playerData().prepareForMatch(player);
         participants.put(player.getUniqueId(), new Participant(player.getUniqueId(), player.getName()));
-        Location start = map.start();
-        if (start != null) {
-            player.teleport(start);
+        if (plugin.configs().config().getBoolean("match.teleport-on-join", false)) {
+            Location start = map.start();
+            if (start != null) player.teleport(start);
         }
         plugin.messages().send(player, "join.success");
         plugin.messages().sound(player, "join");
+        if (plugin.configs().config().getBoolean("effects.join", true)) {
+            player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, player.getLocation().add(0, 1, 0), 25, 0.5, 1, 0.5,
+                    0.05);
+            player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(0, 1, 0), 15, 0.3, 1, 0.3, 0.02);
+        }
+        sendButtons(player);
         plugin.messages().broadcast("join.broadcast", "%player%", player.getName(), "%players%",
                 String.valueOf(participants.size()), "%max%",
                 String.valueOf(plugin.configs().config().getInt("match.max-players", 60)));
@@ -228,6 +239,10 @@ public class Match {
         }
         removeAndRestore(player.getUniqueId());
         plugin.messages().send(player, "leave.success");
+        plugin.messages().sound(player, "leave");
+        if (plugin.configs().config().getBoolean("effects.leave", true)) {
+            player.getWorld().spawnParticle(Particle.SMOKE, player.getLocation().add(0, 1, 0), 20, 0.4, 0.8, 0.4, 0.02);
+        }
         if (state == GameState.COUNTDOWN) {
             plugin.messages().broadcast("leave.broadcast", "%player%", player.getName(), "%players%",
                     String.valueOf(participants.size()), "%max%",
@@ -305,7 +320,13 @@ public class Match {
         if (announceAt.contains(countdown) && countdown > 0) {
             announce();
         }
-        if (countdown <= 5 && countdown > 0) {
+        int titleSeconds = plugin.configs().config().getInt("match.countdown-title-seconds", 5);
+        List<Integer> buttonsAt = plugin.configs().config().getIntegerList("match.buttons-at");
+        if (buttonsAt.contains(countdown) && countdown > 0) {
+            Component buttons = buildButtons();
+            Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(buttons));
+        }
+        if (countdown <= titleSeconds && countdown > 0) {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 plugin.messages().titleRaw(player,
                         plugin.messages().raw("match.countdown-title", "%time%", String.valueOf(countdown)),
@@ -320,8 +341,14 @@ public class Match {
                         plugin.messages().raw("match.starting", "%time%", String.valueOf(Math.max(0, countdown))));
             }
         }
+        int min = plugin.configs().config().getInt("match.min-players", 2);
+        int board = Math.max(0, plugin.configs().config().getInt("bus.board-seconds", 5));
+        if (countdown <= board && participants.size() >= min) {
+            // puxa todo mundo para o onibus, que ja parte imediatamente
+            startBus();
+            return;
+        }
         if (countdown <= 0) {
-            int min = plugin.configs().config().getInt("match.min-players", 2);
             if (participants.size() < min) {
                 cancel();
             } else {
@@ -333,6 +360,7 @@ public class Match {
     /** Mantem os participantes no local configurado durante a fase de entrada. */
     private void holdParticipants() {
         if (tickCounter % 20 != 0) return;
+        if (!plugin.configs().config().getBoolean("match.teleport-on-join", false)) return;
         Location start = map.start();
         if (start == null) return;
         for (Participant participant : participants.values()) {
@@ -361,7 +389,12 @@ public class Match {
             if (!participant.alive()) continue;
             checkMapBounds(player, participant);
             if (!participants.containsKey(participant.uuid())) continue;
-            zone.applyStorm(player);
+            boolean landed = participant.landed();
+            boolean onlyAfterLanding = plugin.configs().config()
+                    .getBoolean("zone.damage-only-after-landing", true);
+            int grace = plugin.configs().config().getInt("zone.grace-seconds", 10);
+            boolean damageAllowed = elapsedSeconds > grace && (!onlyAfterLanding || landed);
+            zone.applyStorm(player, damageAllowed);
             zone.showRing(player);
         }
 
@@ -441,6 +474,10 @@ public class Match {
         markNoFallDamage(player.getUniqueId());
         plugin.messages().send(player, "match.jumped");
         plugin.messages().sound(player, "jump");
+        if (plugin.configs().config().getBoolean("effects.jump", true)) {
+            player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 30, 0.6, 0.3, 0.6, 0.05);
+            player.getWorld().spawnParticle(Particle.FIREWORK, player.getLocation(), 20, 0.4, 0.4, 0.4, 0.08);
+        }
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline() && !player.isOnGround()) {
                 player.setGliding(true);
@@ -473,7 +510,15 @@ public class Match {
         giveKit(player);
         plugin.messages().send(player, "match.landed");
         plugin.messages().sound(player, "land");
-        player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 15, 0.4, 0.1, 0.4, 0.02);
+        if (plugin.configs().config().getBoolean("effects.land", true)) {
+            player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 25, 0.6, 0.1, 0.6, 0.03);
+            player.getWorld().spawnParticle(Particle.EXPLOSION, player.getLocation(), 1);
+        }
+        int resistance = plugin.configs().config().getInt("effects.landing-resistance-seconds", 3);
+        if (resistance > 0) {
+            player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.RESISTANCE, resistance * 20, 1, false, false));
+        }
         if (state == GameState.GLIDING && allLanded()) {
             beginActive();
         }
@@ -593,6 +638,15 @@ public class Match {
         player.getInventory().clear();
         player.setGliding(false);
         player.setFallDistance(0);
+        if (plugin.configs().config().getBoolean("effects.elimination", true)) {
+            player.getWorld().spawnParticle(Particle.LARGE_SMOKE, player.getLocation().add(0, 1, 0), 40, 0.5, 1, 0.5,
+                    0.05);
+            player.getWorld().spawnParticle(Particle.CRIT, player.getLocation().add(0, 1, 0), 30, 0.5, 1, 0.5, 0.2);
+        }
+        if (plugin.configs().config().getBoolean("effects.lightning-on-elimination", true)) {
+            player.getWorld().strikeLightningEffect(player.getLocation());
+        }
+        plugin.messages().soundAll("elimination");
 
         boolean spectatorEnabled = plugin.configs().config().getBoolean("spectator.enabled", true);
         if (!spectatorEnabled) {
@@ -671,7 +725,7 @@ public class Match {
                                 String.valueOf(last.kills())),
                         10, 80, 20);
             }
-            if (player != null) {
+            if (player != null && plugin.configs().config().getBoolean("effects.victory-fireworks", true)) {
                 player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1, 0), 120, 1, 1,
                         1, 0.4);
                 player.getWorld().spawnParticle(Particle.FIREWORK, player.getLocation().add(0, 1, 0), 80, 1, 1, 1, 0.2);
@@ -718,10 +772,21 @@ public class Match {
         participants.clear();
         bus.stop();
         zone.cleanup();
+
+        boolean reset = plugin.configs().config().getBoolean("regeneration.enabled", true)
+                && plugin.configs().config().getBoolean("regeneration.reset-on-end", true);
+        if (!reset) {
+            plugin.regeneration().stopTracking();
+            state = GameState.WAITING;
+            plugin.matches().onMatchFinished(this);
+            return;
+        }
         state = GameState.REGENERATING;
+        plugin.getLogger().info("Regenerando o mapa " + map.id() + "...");
         plugin.regeneration().restore(map, () -> {
             plugin.regeneration().stopTracking();
-            plugin.regeneration().fillLoot(map);
+            int filled = plugin.regeneration().fillLoot(map);
+            plugin.getLogger().info("Mapa regenerado. Loot novo em " + filled + " baus.");
             state = GameState.WAITING;
             plugin.matches().onMatchFinished(this);
         });

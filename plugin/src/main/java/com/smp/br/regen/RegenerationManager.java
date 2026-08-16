@@ -99,8 +99,10 @@ public class RegenerationManager {
             callback.accept(0);
             return;
         }
-        int radius = plugin.configs().config().getInt("regeneration.chest-scan-radius", 220);
-        int perTick = Math.max(1, plugin.configs().config().getInt("regeneration.chunks-per-tick", 8));
+        int radius = plugin.configs().config().getInt("regeneration.chest-scan-radius", 0);
+        if (radius <= 0) radius = (int) Math.ceil(map.radius());
+        int perTick = Math.max(1, plugin.configs().config().getInt("regeneration.chunks-per-tick", 12));
+        final int scanRadius = radius;
         int centerChunkX = (int) map.centerX() >> 4;
         int centerChunkZ = (int) map.centerZ() >> 4;
         int chunkRadius = Math.max(1, radius >> 4);
@@ -129,21 +131,34 @@ public class RegenerationManager {
                     for (BlockState state : chunk.getTileEntities(false)) {
                         if (!(state instanceof Container container)) continue;
                         Location location = state.getLocation();
-                        if (distanceXZ(location, map) > radius) continue;
+                        if (distanceXZ(location, map) > scanRadius) continue;
                         found.add(location);
                         if (firstScan) {
                             snapshot.put(key(location), copy(container.getInventory().getContents()));
                         }
                     }
-                    if (!wasLoaded) chunk.unload(true);
                 }
                 if (queue.isEmpty()) {
                     containers.put(map.id(), found);
+                    plugin.getLogger().info("Scan de baus concluido: " + found.size() + " container(es) no raio "
+                            + scanRadius + ".");
                     cancel();
                     callback.accept(found.size());
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+    /** Estado "ao vivo" do container (evita escrever apenas em um snapshot). */
+    private static Container liveContainer(Block block) {
+        try {
+            BlockState state = block.getState(false);
+            if (state instanceof Container container) return container;
+        } catch (Throwable ignored) {
+            // API antiga: cai no snapshot
+        }
+        BlockState state = block.getState();
+        return state instanceof Container container ? container : null;
     }
 
     /** Gera loot novo em todos os baus conhecidos do mapa. */
@@ -155,7 +170,9 @@ public class RegenerationManager {
         int filled = 0;
         for (Location location : list) {
             Block block = location.getBlock();
-            if (!(block.getState() instanceof Container container)) continue;
+            if (!block.getChunk().isLoaded()) block.getChunk().load(false);
+            Container container = liveContainer(block);
+            if (container == null) continue;
             boolean hot = false;
             for (Vector zone : hotZones) {
                 double dx = zone.getX() - location.getX();
@@ -180,7 +197,9 @@ public class RegenerationManager {
         if (snapshot == null || list == null) return;
         for (Location location : list) {
             Block block = location.getBlock();
-            if (!(block.getState() instanceof Container container)) continue;
+            if (!block.getChunk().isLoaded()) block.getChunk().load(false);
+            Container container = liveContainer(block);
+            if (container == null) continue;
             ItemStack[] original = snapshot.get(key(location));
             container.getInventory().clear();
             if (original != null) {

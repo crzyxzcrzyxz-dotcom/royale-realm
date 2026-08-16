@@ -47,8 +47,13 @@ public class ZoneManager {
 
     public void start() {
         phase = 0;
-        center = new Vector(map.firstZoneX(), 0, map.firstZoneZ());
-        radius = map.firstZoneRadius();
+        boolean auto = plugin.configs().config().getBoolean("zone.auto-first-zone", true);
+        double cx = auto ? map.centerX() : map.firstZoneX();
+        double cz = auto ? map.centerZ() : map.firstZoneZ();
+        center = new Vector(cx, 0, cz);
+        radius = Math.min(auto ? map.radius() * 0.95 : map.firstZoneRadius(), map.radius());
+        startCenter = center.clone();
+        startRadius = radius;
         computeNext();
         mode = Mode.WAITING;
         totalSeconds = map.waitSeconds(0);
@@ -101,13 +106,18 @@ public class ZoneManager {
     }
 
     public double distanceToZone(Location location) {
+        if (map.world() != null && !map.world().equals(location.getWorld())) return 0;
         double dx = location.getX() - center.getX();
         double dz = location.getZ() - center.getZ();
         return Math.max(0, Math.sqrt(dx * dx + dz * dz) - radius);
     }
 
+    public double tolerance() {
+        return Math.max(0.5, plugin.configs().config().getDouble("zone.outside-tolerance", 2.0));
+    }
+
     public boolean isOutside(Location location) {
-        return distanceToZone(location) > 0.5;
+        return distanceToZone(location) > tolerance();
     }
 
     public double currentDamage() {
@@ -229,9 +239,13 @@ public class ZoneManager {
 
     /** Avisos, particulas e dano para quem esta fora da zona. */
     public void applyStorm(Player player) {
+        applyStorm(player, true);
+    }
+
+    public void applyStorm(Player player, boolean damageAllowed) {
         Location location = player.getLocation();
         double distance = distanceToZone(location);
-        if (distance <= 0.5) {
+        if (distance <= tolerance()) {
             if (plugin.configs().config().getBoolean("zone.actionbar", true) && mode != Mode.FINAL) {
                 plugin.messages().actionBar(player, plugin.messages().raw(
                         mode == Mode.SHRINKING ? "zone.shrinking" : "zone.waiting",
@@ -243,6 +257,7 @@ public class ZoneManager {
         }
         plugin.messages().actionBar(player,
                 plugin.messages().raw("zone.outside", "%distance%", String.valueOf((int) distance)));
+        if (!damageAllowed) return;
         plugin.messages().sound(player, "storm-damage");
         if (plugin.configs().config().getBoolean("zone.particles", true)) {
             Particle particle = particle();
@@ -261,6 +276,8 @@ public class ZoneManager {
 
     public void showRing(Player player) {
         if (!plugin.configs().config().getBoolean("zone.particles", true)) return;
+        if (!plugin.configs().config().getBoolean("effects.zone-ring", true)) return;
+        if (map.world() != null && !map.world().equals(player.getWorld())) return;
         Location location = player.getLocation();
         double dx = location.getX() - center.getX();
         double dz = location.getZ() - center.getZ();
