@@ -19,9 +19,10 @@ import java.util.Locale;
 
 public class BRCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUB = Arrays.asList("help", "join", "leave", "spectate", "start", "stop",
-            "forcestart", "forceend", "reload", "status", "map", "setstart", "setbusstart", "setbusend", "setcenter",
-            "setborder", "setzone", "setspawn", "regenerate", "loot", "debug");
+    private static final List<String> SUB = Arrays.asList("ajuda", "entrar", "sair", "assistir", "botoes",
+            "help", "join", "leave", "spectate", "start", "stop", "forcestart", "forceend", "reload", "status",
+            "map", "setstart", "setbusstart", "setbusend", "setcenter", "setborder", "setzone", "setspawn",
+            "regenerate", "reset", "loot", "debug");
 
     private final BattleRoyalePlugin plugin;
 
@@ -37,11 +38,12 @@ public class BRCommand implements CommandExecutor, TabCompleter {
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
-            case "join" -> join(sender);
-            case "leave" -> leave(sender);
-            case "spectate" -> spectate(sender);
-            case "start" -> start(sender, args);
-            case "stop", "forceend" -> stop(sender);
+            case "join", "entrar" -> join(sender);
+            case "leave", "sair" -> leave(sender);
+            case "spectate", "assistir" -> spectate(sender);
+            case "botoes", "buttons" -> buttons(sender);
+            case "start", "iniciar" -> start(sender, args);
+            case "stop", "forceend", "parar" -> stop(sender);
             case "forcestart" -> forceStart(sender);
             case "reload" -> reload(sender);
             case "status" -> status(sender);
@@ -52,7 +54,7 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             case "setcenter" -> setCenter(sender);
             case "setborder" -> setBorder(sender, args);
             case "setzone" -> setZone(sender, args);
-            case "regenerate" -> regenerate(sender);
+            case "regenerate", "reset" -> regenerate(sender);
             case "loot" -> loot(sender);
             case "debug" -> debug(sender);
             default -> help(sender);
@@ -62,23 +64,37 @@ public class BRCommand implements CommandExecutor, TabCompleter {
 
     // ------------------------------------------------------------------
 
+    private void buttons(CommandSender sender) {
+        Player player = player(sender);
+        if (player == null) return;
+        Match match = plugin.matches().current();
+        if (match == null) {
+            plugin.messages().send(player, "join.not-open");
+            return;
+        }
+        match.sendButtons(player);
+    }
+
     private void help(CommandSender sender) {
         plugin.messages().sendRaw(sender, "&8&m                                        ");
         plugin.messages().sendRaw(sender, "&b&l⚔ BATTLE ROYALE &7- comandos");
-        plugin.messages().sendRaw(sender, "&f/br join &7- entrar no evento");
-        plugin.messages().sendRaw(sender, "&f/br leave &7- sair do evento");
-        plugin.messages().sendRaw(sender, "&f/br spectate &7- assistir apos ser eliminado");
+        plugin.messages().sendRaw(sender, "&7Jogadores:");
+        plugin.messages().sendRaw(sender, " &f/br entrar &8(/br join) &7- entrar no evento");
+        plugin.messages().sendRaw(sender, " &f/br sair &8(/br leave) &7- sair do evento");
+        plugin.messages().sendRaw(sender, " &f/br assistir &7- assistir apos ser eliminado");
+        plugin.messages().sendRaw(sender, " &f/br botoes &7- mostrar os botoes ENTRAR/SAIR no chat");
         if (sender.hasPermission("battleroyale.admin") || sender.hasPermission("battleroyale.start")) {
-            plugin.messages().sendRaw(sender, "&f/br start [mapa] &7- anunciar e iniciar um evento");
-            plugin.messages().sendRaw(sender, "&f/br forcestart &7- pular a fase de entrada");
-            plugin.messages().sendRaw(sender, "&f/br stop &7| &f/br forceend &7- encerrar a partida");
-            plugin.messages().sendRaw(sender, "&f/br status &7- estado atual");
-            plugin.messages().sendRaw(sender, "&f/br map list|next|set <mapa>");
-            plugin.messages().sendRaw(sender, "&f/br setstart &7- define onde os jogadores aguardam");
-            plugin.messages().sendRaw(sender, "&f/br setbusstart &7| &f/br setbusend &7- rota do onibus");
-            plugin.messages().sendRaw(sender, "&f/br setcenter &7| &f/br setborder <raio>");
-            plugin.messages().sendRaw(sender, "&f/br setzone <raio> &7- primeira safe zone na sua posicao");
-            plugin.messages().sendRaw(sender, "&f/br regenerate &7| &f/br loot &7| &f/br reload &7| &f/br debug");
+            plugin.messages().sendRaw(sender, "&7Administracao:");
+            plugin.messages().sendRaw(sender, " &f/br start [mapa] &7- anunciar e iniciar um evento");
+            plugin.messages().sendRaw(sender, " &f/br forcestart &7- pular a fase de entrada");
+            plugin.messages().sendRaw(sender, " &f/br stop &7| &f/br forceend &7- encerrar a partida");
+            plugin.messages().sendRaw(sender, " &f/br status &7- estado atual");
+            plugin.messages().sendRaw(sender, " &f/br map list|next|set <mapa>");
+            plugin.messages().sendRaw(sender, " &f/br setstart &7- define onde os jogadores aguardam");
+            plugin.messages().sendRaw(sender, " &f/br setbusstart &7| &f/br setbusend &7- rota do onibus");
+            plugin.messages().sendRaw(sender, " &f/br setcenter &7| &f/br setborder <raio>");
+            plugin.messages().sendRaw(sender, " &f/br setzone <raio> &7- primeira safe zone na sua posicao");
+            plugin.messages().sendRaw(sender, " &f/br reset &8(/br regenerate) &7| &f/br loot &7| &f/br reload &7| &f/br debug");
         }
         plugin.messages().sendRaw(sender, "&8&m                                        ");
     }

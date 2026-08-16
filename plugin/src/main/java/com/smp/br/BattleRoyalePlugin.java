@@ -59,6 +59,18 @@ public class BattleRoyalePlugin extends JavaPlugin {
 
         matchManager.startTicker();
 
+        // deixa os baus do mapa atual ja abastecidos assim que o servidor abre
+        if (configManager.config().getBoolean("loot.fill-on-startup", true)) {
+            Bukkit.getScheduler().runTaskLater(this, () -> {
+                var map = mapManager.current();
+                if (map == null || !map.isReady()) return;
+                regenerationManager.scanContainers(map, found -> {
+                    int filled = regenerationManager.fillLoot(map);
+                    getLogger().info("Loot inicial gerado em " + filled + " bau(s).");
+                });
+            }, 100L);
+        }
+
         int autosave = Math.max(10, configManager.config().getInt("storage.autosave-seconds", 60));
         Bukkit.getScheduler().runTaskTimer(this, () -> playerDataManager.flush(), autosave * 20L, autosave * 20L);
 
