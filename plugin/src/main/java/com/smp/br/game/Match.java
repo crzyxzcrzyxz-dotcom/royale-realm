@@ -442,7 +442,6 @@ public class Match {
     // ------------------------------------------------------------------
 
     private void startBus() {
-        state = GameState.BUS;
         if (!lootReady) {
             plugin.regeneration().fillLoot(map);
             lootReady = true;
@@ -458,8 +457,7 @@ public class Match {
         }
         zone.start();
         bus.start(players);
-        plugin.messages().broadcast("match.bus-start");
-        plugin.messages().soundAll("bus-start");
+        plugin.messages().broadcast("match.boarding");
         for (Player player : players) {
             plugin.messages().titleRaw(player, plugin.messages().raw("match.begin-title"),
                     plugin.messages().raw("match.begin-subtitle"), 5, 40, 10);
