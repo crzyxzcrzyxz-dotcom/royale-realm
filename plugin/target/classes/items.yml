@@ -1,66 +1,119 @@
 # ==========================================================
 #  ITENS ESPECIAIS
+#  Todos os valores sao configuraveis.
 # ==========================================================
 grappler:
   enabled: true
   material: FISHING_ROD
   name: "&b&lGRAPPLER"
   lore:
-    - "&7Clique com o botao direito para se lancar."
+    - "&7Clique direito para se lancar ate onde mira."
     - "&7Alcance: &f%range% blocos"
     - "&7Usos: &f%uses%"
-  range: 28
+  range: 45
   uses: 12
-  cooldown-ticks: 30
-  power: 1.35
-  vertical-bonus: 0.35
-  # nao permite atravessar paredes (raytrace bloqueado por blocos solidos)
-  require-line-of-sight: true
+  cooldown-ticks: 25
+  power: 1.45
+  vertical-bonus: 0.45
 
 specials:
   medkit:
     enabled: true
     material: GHAST_TEAR
     name: "&d&lMEDKIT"
-    lore: ["&7Cura totalmente apos 3 segundos parado."]
+    lore: ["&7Cura TOTALMENTE apos 3s parado."]
     heal: 20.0
     channel-ticks: 60
-    cooldown-ticks: 40
-  shield-potion:
-    enabled: true
-    material: HONEY_BOTTLE
-    name: "&e&lPOCAO DE ESCUDO"
-    lore: ["&7Concede absorcao e resistencia."]
-    absorption-seconds: 90
-    resistance-seconds: 8
-    cooldown-ticks: 40
-  launch-pad:
-    enabled: true
-    material: SLIME_BLOCK
-    name: "&a&lLAUNCH PAD"
-    lore: ["&7Coloque no chao e pise para ser lancado."]
-    power: 1.6
-    forward: 0.9
-  smoke-bomb:
-    enabled: true
-    material: SNOWBALL
-    name: "&8&lBOMBA DE FUMACA"
-    lore: ["&7Cria uma cortina de fumaca e cegueira."]
-    radius: 5.0
-    blind-seconds: 5
-  impulse:
-    enabled: true
-    material: FIREWORK_ROCKET
-    name: "&c&lGRANADA DE IMPULSO"
-    lore: ["&7Empurra jogadores proximos."]
-    radius: 6.0
-    power: 1.8
-    cooldown-ticks: 60
   bandage:
     enabled: true
     material: PAPER
     name: "&f&lBANDAGEM"
-    lore: ["&7Regenera vida lentamente."]
+    lore:
+      - "&7Cura &c2 coracoes &7instantaneos"
+      - "&7e regenera vida por %regen%s. &aSem cooldown."
+    instant-heal: 4.0
     regen-seconds: 8
     amplifier: 1
-    cooldown-ticks: 30
+  shield-potion:
+    enabled: true
+    material: HONEY_BOTTLE
+    name: "&e&lPOCAO DE ESCUDO"
+    lore: ["&7+2 escudos de absorcao e resistencia."]
+    absorption-level: 1
+    absorption-seconds: 120
+    resistance-seconds: 8
+  big-shield:
+    enabled: true
+    material: DRAGON_BREATH
+    name: "&6&lESCUDO GRANDE"
+    lore: ["&7+5 escudos de absorcao e resistencia."]
+    absorption-level: 3
+    absorption-seconds: 180
+    resistance-seconds: 12
+  chug-jug:
+    enabled: true
+    material: MILK_BUCKET
+    name: "&5&lCHUG JUG"
+    lore: ["&7Cura total + absorcao maxima apos 5s parado."]
+    channel-ticks: 100
+    absorption-level: 4
+    absorption-seconds: 240
+  launch-pad:
+    enabled: true
+    material: SLIME_BALL
+    name: "&a&lLAUNCH PAD"
+    lore:
+      - "&7Arremesse no chao: cria um 3x3 de slime"
+      - "&7que lanca para cima e para frente."
+    pad-seconds: 45
+    power: 2.2
+    forward: 1.6
+  smoke-bomb:
+    enabled: true
+    material: SNOWBALL
+    name: "&8&lBOMBA DE FUMACA"
+    lore: ["&7Cortina de fumaca + escuridao."]
+    radius: 6.0
+    blind-seconds: 6
+  impulse:
+    enabled: true
+    material: FIREWORK_ROCKET
+    name: "&c&lGRANADA DE IMPULSO"
+    lore: ["&7Arremesse: empurra tudo para longe."]
+    radius: 7.0
+    power: 2.4
+    forward: 1.8
+  shockwave:
+    enabled: true
+    material: FIRE_CHARGE
+    name: "&9&lGRANADA SHOCKWAVE"
+    lore: ["&7Arremesse: empurrao gigante sem dano."]
+    radius: 10.0
+    power: 3.4
+  boogie-bomb:
+    enabled: true
+    material: MAGMA_CREAM
+    name: "&d&lBOOGIE BOMB"
+    lore: ["&7Arremesse: inimigos ficam dancando."]
+    radius: 5.0
+    seconds: 6
+  rift:
+    enabled: true
+    material: ENDER_EYE
+    name: "&5&lRIFT"
+    lore: ["&7Lanca voce ao ceu com planagem segura."]
+    height: 2.6
+  adrenaline:
+    enabled: true
+    material: SUGAR
+    name: "&c&lADRENALINA"
+    lore: ["&7Velocidade + forca + regeneracao."]
+    seconds: 20
+  port-a-fort:
+    enabled: true
+    material: SCAFFOLDING
+    name: "&e&lPORT-A-FORT"
+    lore: ["&7Arremesse: constroi um forte instantaneo."]
+    size: 2
+    height: 4
+    block: STONE_BRICKS

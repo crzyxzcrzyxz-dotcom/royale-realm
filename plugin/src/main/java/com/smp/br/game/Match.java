@@ -343,8 +343,8 @@ public class Match {
         }
         int min = plugin.configs().config().getInt("match.min-players", 2);
         int board = Math.max(0, plugin.configs().config().getInt("bus.board-seconds", 5));
-        if (countdown <= board && participants.size() >= min) {
-            // puxa todo mundo para o onibus, que ja parte imediatamente
+        if (countdown == board && participants.size() >= min && !bus.isRunning()) {
+            // embarque: os jogadores sao puxados para o onibus, que fica PARADO
             startBus();
             return;
         }
@@ -352,7 +352,12 @@ public class Match {
             if (participants.size() < min) {
                 cancel();
             } else {
-                startBus();
+                if (!bus.isRunning()) startBus();
+                // agora sim o onibus parte
+                bus.depart();
+                state = GameState.BUS;
+                plugin.messages().broadcast("match.bus-start");
+                plugin.messages().soundAll("bus-start");
             }
         }
     }
@@ -437,7 +442,6 @@ public class Match {
     // ------------------------------------------------------------------
 
     private void startBus() {
-        state = GameState.BUS;
         if (!lootReady) {
             plugin.regeneration().fillLoot(map);
             lootReady = true;
@@ -453,8 +457,7 @@ public class Match {
         }
         zone.start();
         bus.start(players);
-        plugin.messages().broadcast("match.bus-start");
-        plugin.messages().soundAll("bus-start");
+        plugin.messages().broadcast("match.boarding");
         for (Player player : players) {
             plugin.messages().titleRaw(player, plugin.messages().raw("match.begin-title"),
                     plugin.messages().raw("match.begin-subtitle"), 5, 40, 10);

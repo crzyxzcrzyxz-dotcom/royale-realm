@@ -1,8 +1,7 @@
 # ==========================================================
 #  LOOT E RARIDADES
-#  material: nome vanilla OU "SPECIAL:<id>" (grappler, medkit, shield-potion,
-#            launch-pad, smoke-bomb, impulse, bandage)
-#  enchants: lista "chave:nivel" (limites vanilla)
+#  material: nome vanilla OU "SPECIAL:<id>"
+#  Cada raridade tem itens REALMENTE diferentes + bonus automatico.
 # ==========================================================
 rarities:
   COMMON:
@@ -25,6 +24,19 @@ rarities:
     display: "LENDARIO"
     color: "&6"
     stars: 5
+  MYTHIC:
+    display: "MITICO"
+    color: "&c"
+    stars: 6
+
+# bonus automatico aplicado pela raridade (o que faz raridade valer a pena)
+bonus:
+  COMMON:    {weapon: 0, armor: 0, bow: 0, unbreaking: 0}
+  UNCOMMON:  {weapon: 1, armor: 1, bow: 1, unbreaking: 1}
+  RARE:      {weapon: 2, armor: 2, bow: 2, unbreaking: 2}
+  EPIC:      {weapon: 3, armor: 3, bow: 3, unbreaking: 3}
+  LEGENDARY: {weapon: 4, armor: 4, bow: 4, unbreaking: 3}
+  MYTHIC:    {weapon: 5, armor: 4, bow: 5, unbreaking: 4}
 
 tables:
   COMMON:
@@ -32,66 +44,74 @@ tables:
     - {material: STONE_SWORD, min: 1, max: 1, weight: 10}
     - {material: STONE_AXE, min: 1, max: 1, weight: 8}
     - {material: STONE_PICKAXE, min: 1, max: 1, weight: 8}
-    - {material: STONE_SHOVEL, min: 1, max: 1, weight: 5}
     - {material: LEATHER_HELMET, min: 1, max: 1, weight: 7}
     - {material: LEATHER_CHESTPLATE, min: 1, max: 1, weight: 7}
     - {material: LEATHER_LEGGINGS, min: 1, max: 1, weight: 7}
     - {material: LEATHER_BOOTS, min: 1, max: 1, weight: 7}
-    - {material: BREAD, min: 2, max: 6, weight: 14}
-    - {material: COOKED_CHICKEN, min: 2, max: 4, weight: 10}
+    - {material: BREAD, min: 2, max: 5, weight: 14}
     - {material: APPLE, min: 1, max: 4, weight: 10}
-    - {material: ARROW, min: 4, max: 12, weight: 12}
+    - {material: ARROW, min: 5, max: 10, weight: 12}
     - {material: OAK_PLANKS, min: 16, max: 32, weight: 12}
     - {material: TORCH, min: 4, max: 8, weight: 6}
   UNCOMMON:
     - {material: IRON_SWORD, min: 1, max: 1, weight: 10}
     - {material: IRON_AXE, min: 1, max: 1, weight: 8}
-    - {material: IRON_PICKAXE, min: 1, max: 1, weight: 7}
-    - {material: BOW, min: 1, max: 1, weight: 10, enchants: ["power:1"]}
+    - {material: BOW, min: 1, max: 1, weight: 10}
     - {material: SHIELD, min: 1, max: 1, weight: 8}
-    - {material: CHAINMAIL_HELMET, min: 1, max: 1, weight: 6}
     - {material: CHAINMAIL_CHESTPLATE, min: 1, max: 1, weight: 6}
     - {material: CHAINMAIL_LEGGINGS, min: 1, max: 1, weight: 6}
-    - {material: CHAINMAIL_BOOTS, min: 1, max: 1, weight: 6}
     - {material: IRON_HELMET, min: 1, max: 1, weight: 6}
     - {material: IRON_BOOTS, min: 1, max: 1, weight: 6}
     - {material: COOKED_BEEF, min: 3, max: 6, weight: 12}
-    - {material: ARROW, min: 8, max: 20, weight: 10}
+    - {material: SPECTRAL_ARROW, min: 6, max: 14, weight: 10}
     - {material: COBBLESTONE, min: 24, max: 48, weight: 10}
-    - {material: SPECIAL:bandage, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:bandage, min: 1, max: 3, weight: 10}
   RARE:
-    - {material: IRON_SWORD, min: 1, max: 1, weight: 10, enchants: ["sharpness:1"]}
-    - {material: IRON_CHESTPLATE, min: 1, max: 1, weight: 8, enchants: ["protection:1"]}
-    - {material: IRON_LEGGINGS, min: 1, max: 1, weight: 8, enchants: ["protection:1"]}
-    - {material: BOW, min: 1, max: 1, weight: 9, enchants: ["power:2"]}
-    - {material: CROSSBOW, min: 1, max: 1, weight: 7}
-    - {material: GOLDEN_APPLE, min: 1, max: 1, weight: 9}
-    - {material: SPLASH_POTION, min: 1, max: 1, weight: 6, potion: HEALING}
-    - {material: SPECIAL:shield-potion, min: 1, max: 1, weight: 9}
-    - {material: SPECIAL:smoke-bomb, min: 1, max: 2, weight: 7}
+    - {material: IRON_SWORD, min: 1, max: 1, weight: 10, enchants: ["fire_aspect:1"]}
+    - {material: IRON_CHESTPLATE, min: 1, max: 1, weight: 8}
+    - {material: IRON_LEGGINGS, min: 1, max: 1, weight: 8}
+    - {material: CROSSBOW, min: 1, max: 1, weight: 8, enchants: ["quick_charge:1"]}
+    - {material: BOW, min: 1, max: 1, weight: 8, enchants: ["punch:1"]}
+    - {material: GOLDEN_APPLE, min: 1, max: 2, weight: 9}
+    - {material: TIPPED_ARROW, min: 6, max: 12, weight: 8, potion: POISON}
+    - {material: SPECIAL:shield-potion, min: 1, max: 2, weight: 10}
+    - {material: SPECIAL:smoke-bomb, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:launch-pad, min: 1, max: 2, weight: 8}
     - {material: COBWEB, min: 2, max: 5, weight: 8}
     - {material: ENDER_PEARL, min: 1, max: 2, weight: 6}
-    - {material: ARROW, min: 16, max: 32, weight: 8}
   EPIC:
-    - {material: DIAMOND_SWORD, min: 1, max: 1, weight: 10, enchants: ["sharpness:2"]}
-    - {material: DIAMOND_HELMET, min: 1, max: 1, weight: 7, enchants: ["protection:2"]}
-    - {material: DIAMOND_CHESTPLATE, min: 1, max: 1, weight: 6, enchants: ["protection:2"]}
-    - {material: DIAMOND_BOOTS, min: 1, max: 1, weight: 7, enchants: ["protection:2", "feather_falling:2"]}
-    - {material: BOW, min: 1, max: 1, weight: 8, enchants: ["power:3", "punch:1"]}
+    - {material: DIAMOND_SWORD, min: 1, max: 1, weight: 10, enchants: ["sweeping_edge:2"]}
+    - {material: DIAMOND_HELMET, min: 1, max: 1, weight: 7}
+    - {material: DIAMOND_CHESTPLATE, min: 1, max: 1, weight: 6}
+    - {material: DIAMOND_BOOTS, min: 1, max: 1, weight: 7, enchants: ["feather_falling:3"]}
+    - {material: CROSSBOW, min: 1, max: 1, weight: 8, enchants: ["quick_charge:2", "multishot:1"]}
     - {material: SPECIAL:grappler, min: 1, max: 1, weight: 10}
-    - {material: SPECIAL:medkit, min: 1, max: 1, weight: 8}
-    - {material: SPECIAL:launch-pad, min: 1, max: 2, weight: 7}
-    - {material: SPECIAL:impulse, min: 1, max: 2, weight: 7}
+    - {material: SPECIAL:medkit, min: 1, max: 1, weight: 9}
+    - {material: SPECIAL:impulse, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:big-shield, min: 1, max: 1, weight: 8}
+    - {material: SPECIAL:adrenaline, min: 1, max: 2, weight: 8}
+    - {material: TIPPED_ARROW, min: 8, max: 16, weight: 7, potion: SLOWNESS}
     - {material: GOLDEN_APPLE, min: 2, max: 3, weight: 8}
-    - {material: SPLASH_POTION, min: 1, max: 1, weight: 5, potion: STRENGTH}
   LEGENDARY:
-    - {material: DIAMOND_SWORD, min: 1, max: 1, weight: 10, enchants: ["sharpness:3", "unbreaking:2"]}
-    - {material: NETHERITE_SWORD, min: 1, max: 1, weight: 4, enchants: ["sharpness:2"]}
-    - {material: DIAMOND_CHESTPLATE, min: 1, max: 1, weight: 8, enchants: ["protection:3", "unbreaking:2"]}
-    - {material: DIAMOND_LEGGINGS, min: 1, max: 1, weight: 8, enchants: ["protection:3"]}
-    - {material: BOW, min: 1, max: 1, weight: 8, enchants: ["power:4", "flame:1"]}
-    - {material: ENCHANTED_GOLDEN_APPLE, min: 1, max: 1, weight: 5}
-    - {material: SPECIAL:grappler, min: 1, max: 1, weight: 9}
-    - {material: SPECIAL:medkit, min: 1, max: 2, weight: 8}
-    - {material: TOTEM_OF_UNDYING, min: 1, max: 1, weight: 3}
-    - {material: SPLASH_POTION, min: 1, max: 2, weight: 6, potion: SWIFTNESS}
+    - {material: DIAMOND_SWORD, min: 1, max: 1, weight: 10, enchants: ["fire_aspect:2", "knockback:1"]}
+    - {material: NETHERITE_SWORD, min: 1, max: 1, weight: 5}
+    - {material: DIAMOND_CHESTPLATE, min: 1, max: 1, weight: 8, enchants: ["thorns:1"]}
+    - {material: DIAMOND_LEGGINGS, min: 1, max: 1, weight: 8}
+    - {material: BOW, min: 1, max: 1, weight: 8, enchants: ["flame:1", "infinity:1"]}
+    - {material: CROSSBOW, min: 1, max: 1, weight: 7, enchants: ["piercing:3", "quick_charge:3"]}
+    - {material: ENCHANTED_GOLDEN_APPLE, min: 1, max: 1, weight: 6}
+    - {material: SPECIAL:chug-jug, min: 1, max: 1, weight: 8}
+    - {material: SPECIAL:shockwave, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:port-a-fort, min: 1, max: 1, weight: 7}
+    - {material: SPECIAL:rift, min: 1, max: 2, weight: 7}
+  MYTHIC:
+    - {material: NETHERITE_SWORD, min: 1, max: 1, weight: 10, enchants: ["fire_aspect:2", "knockback:2"]}
+    - {material: NETHERITE_AXE, min: 1, max: 1, weight: 7}
+    - {material: NETHERITE_CHESTPLATE, min: 1, max: 1, weight: 8}
+    - {material: NETHERITE_HELMET, min: 1, max: 1, weight: 8}
+    - {material: NETHERITE_BOOTS, min: 1, max: 1, weight: 8, enchants: ["feather_falling:4", "depth_strider:2"]}
+    - {material: BOW, min: 1, max: 1, weight: 8, enchants: ["flame:1", "punch:2", "infinity:1"]}
+    - {material: TOTEM_OF_UNDYING, min: 1, max: 1, weight: 6}
+    - {material: ENCHANTED_GOLDEN_APPLE, min: 2, max: 3, weight: 7}
+    - {material: SPECIAL:chug-jug, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:boogie-bomb, min: 1, max: 2, weight: 8}
