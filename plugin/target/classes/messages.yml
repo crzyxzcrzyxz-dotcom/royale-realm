@@ -27,6 +27,8 @@ leave:
 match:
   cancelled: "&cBattle Royale cancelado: jogadores insuficientes."
   starting: "&6🔥 A partida comeca em %time% segundos!"
+  boarding: "&b🚌 Embarque! Todos a bordo do Battle Bus..."
+  boarding-hint: "&7Aguarde... o onibus vai partir!"
   bus-start: "&b🚌 O onibus esta partindo! Agache (SHIFT) para saltar."
   jump-hint: "&b🪂 Escolha onde pousar!"
   jumped: "&b🪂 Voce saltou! Plane ate o local escolhido."

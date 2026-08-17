@@ -1,53 +1,57 @@
 # ==========================================================
 #  BATTLE ROYALE - Configuracao principal
-#  Tudo abaixo pode ser alterado; os valores ja vem com um padrao pronto.
 # ==========================================================
 
 automatic:
   enabled: true
-  # intervalo entre eventos automaticos (segundos)
   interval-seconds: 1800
-  # atrasar o primeiro evento apos o start do servidor (segundos)
   first-delay-seconds: 600
-  # so anuncia se houver pelo menos X jogadores online
   required-online: 2
 
 match:
   # duracao da fase de entrada (segundos)
   join-seconds: 45
   min-players: 2
-  max-players: 60
-  # o anuncio completo com os botoes aparece UMA UNICA VEZ.
-  # coloque segundos aqui (ex: [30, 10]) se quiser reenviar o anuncio.
+  # limite de jogadores (alteravel)
+  max-players: 100
+  # SOLO, DUO, TRIO, SQUAD
+  mode: SOLO
   announce-at: []
-  # reenviar apenas os botoes [ENTRAR]/[SAIR] nestes segundos (lista vazia = nunca)
   buttons-at: []
-  # mostrar contagem regressiva em titulo nos ultimos X segundos
   countdown-title-seconds: 5
-  # teletransportar quem entra para o ponto de espera do mapa?
-  # false = o jogador continua exatamente onde estava ate a partida comecar
+  # false = o jogador continua onde estava ate o embarque
   teleport-on-join: false
-  # tempo maximo de planagem antes de forcar o pouso (segundos)
   glide-timeout-seconds: 60
-  # tempo maximo total da partida (segundos), 0 = ilimitado
   max-duration-seconds: 1800
-  # ao terminar, quantos segundos ate limpar e regenerar
-  end-delay-seconds: 8
+  end-delay-seconds: 10
+
+teams:
+  # equipas nao se atacam
+  friendly-fire: false
+  # cor + simbolo de cada equipa (usados no nome)
+  styles:
+    - {color: "&a", symbol: "✦"}
+    - {color: "&b", symbol: "✿"}
+    - {color: "&d", symbol: "❖"}
+    - {color: "&e", symbol: "★"}
+    - {color: "&6", symbol: "☘"}
+    - {color: "&c", symbol: "✵"}
+    - {color: "&9", symbol: "✪"}
+    - {color: "&5", symbol: "❂"}
+    - {color: "&2", symbol: "✷"}
+    - {color: "&3", symbol: "✹"}
 
 spectator:
   enabled: true
-  # o jogador eliminado escolhe entre assistir ou voltar ao SMP
-  ask-player: true
-  # se ele nao escolher em X segundos, volta ao SMP
-  choice-seconds: 15
+  # ao morrer o jogador vira espectador automaticamente
+  auto: true
+  # so volta ao SMP clicando no botao do chat
+  force-button: true
 
-# Para onde o jogador volta ao sair/ser eliminado/terminar a partida
 return:
-  # ORIGINAL = exatamente o bloco onde estava antes de entrar
-  # SPAWN    = spawn do mundo (ou as coordenadas abaixo)
+  # ORIGINAL = bloco onde estava | SPAWN = spawn/coordenadas abaixo
   mode: ORIGINAL
   spawn:
-    # deixe world vazio para usar o spawn do mundo principal
     world: ""
     x: 0.5
     y: 100.0
@@ -56,9 +60,7 @@ return:
     pitch: 0.0
 
 commands:
-  # comandos permitidos durante a partida (sem a barra)
   whitelist: [br, battleroyale, brl, msg, tell, r, help]
-  # jogadores com esta permissao ignoram o bloqueio
   bypass-permission: battleroyale.bypass
 
 kit:
@@ -66,46 +68,57 @@ kit:
   items:
     - "IRON_PICKAXE:1"
     - "OAK_PLANKS:64"
-    - "BREAD:32"
+    - "BREAD:8"
 
 elytra:
   remove-on-land: true
   cancel-first-fall-damage: true
-  # impulso inicial ao saltar do onibus
   jump-boost: 0.4
 
 bus:
-  # segundos antes do fim da contagem em que os jogadores sao puxados para o onibus.
-  # o onibus JA COMECA A ANDAR neste momento (nao fica parado).
+  # segundos em que o onibus fica PARADO enquanto todos embarcam.
+  # ele so parte quando a contagem chega a zero.
   board-seconds: 5
-  # blocos por tick (usado se a duracao nao for definida no mapa)
-  default-speed: 0.9
+  default-speed: 0.85
   default-height: 160
-  # tamanho do onibus (em blocos)
-  length: 13
-  width: 5
-  height-blocks: 3
+  # tamanho do onibus
+  length: 17
+  width: 7
+  height-blocks: 4
   roof: true
+  # visual
   block: LIGHT_BLUE_CONCRETE
   glass-block: LIGHT_BLUE_STAINED_GLASS
-  # saltar agachando (SHIFT) - tambem funciona desmontando do assento
+  trim-block: WHITE_CONCRETE
+  balloon: true
+  balloon-block: BLUE_WOOL
+  balloon-radius: 5
   jump-on-sneak: true
   force-eject: true
 
 zone:
-  damage-per-phase: [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
+  # DANO FIXO da tempestade (2.0 = 1 coracao)
+  damage: 2.0
   bossbar: true
   actionbar: true
   particles: true
   particle: CLOUD
-  # segundos de tolerancia depois do pouso antes da tempestade causar dano
   grace-seconds: 10
-  # so causa dano em quem ja pousou
   damage-only-after-landing: true
-  # margem (blocos) antes de considerar o jogador fora da zona
-  outside-tolerance: 2.0
-  # usar sempre o centro/raio do mapa como primeira zona (evita zona fora do mapa)
-  auto-first-zone: true
+  # margem antes de considerar o jogador fora (evita dano dentro da zona)
+  outside-tolerance: 3.0
+  # a zona fecha totalmente (raio 0) no fim
+  close-completely: true
+  # zonas aleatorias no mapa (estilo Fortnite)
+  random-zones: true
+  # so escolhe centros onde existe terreno solido
+  terrain-check: true
+  terrain-tries: 40
+
+death:
+  # ao morrer, os itens ficam num bau no local da morte
+  chest: true
+  chest-glow: true
 
 border:
   # TELEPORT ou ELIMINATE
@@ -117,27 +130,26 @@ loot:
   max-slots: 7
   hot-zone-multiplier: 2.0
   hot-zone-radius: 25
-  # gerar loot ja no start do servidor, para os baus nunca ficarem vazios
   fill-on-startup: true
   chances:
-    COMMON: 50.0
-    UNCOMMON: 27.0
-    RARE: 15.0
-    EPIC: 6.0
-    LEGENDARY: 2.0
+    COMMON: 44.0
+    UNCOMMON: 26.0
+    RARE: 16.0
+    EPIC: 9.0
+    LEGENDARY: 4.0
+    MYTHIC: 1.0
 
 regeneration:
   enabled: true
-  # resetar o mapa automaticamente ao terminar a partida
   reset-on-end: true
-  blocks-per-tick: 400
+  blocks-per-tick: 600
   clear-drops: true
-  # raio de varredura de baus a partir do centro do mapa. 0 = usar o raio do mapa
+  # remove tambem entidades criadas na partida (armor stands, projeteis, etc)
+  clear-entities: true
   chest-scan-radius: 0
   chunks-per-tick: 12
 
 effects:
-  # efeitos visuais extras
   join: true
   leave: true
   bus-trail: true
@@ -146,8 +158,9 @@ effects:
   elimination: true
   lightning-on-elimination: true
   victory-fireworks: true
+  # quantidade de fogos ao vencer
+  victory-firework-count: 40
   zone-ring: true
-  # efeitos de pocao dados ao pousar (segundos)
   landing-resistance-seconds: 3
 
 sounds:
@@ -164,6 +177,7 @@ sounds:
   victory: "ui.toast.challenge_complete"
   grappler: "entity.fishing_bobber.throw"
   grappler-pull: "entity.enderman.teleport"
+  heal: "entity.player.levelup"
   error: "block.note_block.bass"
 
 storage:
