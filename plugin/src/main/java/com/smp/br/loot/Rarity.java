@@ -5,7 +5,8 @@ public enum Rarity {
     UNCOMMON,
     RARE,
     EPIC,
-    LEGENDARY;
+    LEGENDARY,
+    MYTHIC;
 
     public static Rarity parse(String value, Rarity fallback) {
         if (value == null) return fallback;

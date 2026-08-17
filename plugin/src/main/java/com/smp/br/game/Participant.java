@@ -18,6 +18,9 @@ public class Participant {
     private int placement;
     private double damageDealt;
     private double damageTaken;
+    private int team = -1;
+    private String teamColor = "&f";
+    private String teamSymbol = "";
     private final List<String> victims = new ArrayList<>();
 
     public Participant(UUID uuid, String name) {
@@ -108,5 +111,33 @@ public class Participant {
 
     public void addDamageTaken(double amount) {
         damageTaken += amount;
+    }
+
+    // ---------------- equipas ----------------
+
+    public int team() {
+        return team;
+    }
+
+    public void team(int team) {
+        this.team = team;
+    }
+
+    public String teamColor() {
+        return teamColor;
+    }
+
+    public String teamSymbol() {
+        return teamSymbol;
+    }
+
+    public void teamStyle(String color, String symbol) {
+        this.teamColor = color;
+        this.teamSymbol = symbol;
+    }
+
+    /** Pontuacao usada para o MVP e o top 3. */
+    public double score() {
+        return kills * 100.0 + damageDealt + Math.max(0, 50 - placement) * 5.0;
     }
 }
