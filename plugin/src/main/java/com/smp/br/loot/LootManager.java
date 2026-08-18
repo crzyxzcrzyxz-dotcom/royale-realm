@@ -193,17 +193,22 @@ public class LootManager {
         if (parts.length == 0) return;
         Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(parts[0].toLowerCase()));
         if (enchantment == null) return;
+        
         int level = 1;
         if (parts.length > 1) {
             try {
                 level = Integer.parseInt(parts[1]);
-            } catch (NumberFormatException ignored) {
-                level = 1;
-            }
+            } catch (NumberFormatException ignored) {}
         }
-        // nunca ultrapassa o limite vanilla
-        level = Math.max(1, Math.min(level, enchantment.getMaxLevel()));
-        meta.addEnchant(enchantment, level, false);
+        
+        // Bonus por raridade
+        ConfigurationSection raritySec = plugin.configs().loot().getConfigurationSection("rarities." + rarity.name());
+        if (raritySec != null) {
+            level += raritySec.getInt("enchant-bonus", 0);
+        }
+        
+        level = Math.max(1, Math.min(level, enchantment.getMaxLevel() + 2)); // Permite ate +2 do vanilla em raridades altas
+        meta.addEnchant(enchantment, level, true);
     }
 
     /** Aplica nome com estrelas e cor da raridade + marca o item como temporario. */
