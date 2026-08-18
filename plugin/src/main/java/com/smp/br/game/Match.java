@@ -431,7 +431,8 @@ public class Match {
             target.setZ(map.centerZ() + dz * scale);
             target.setY(Math.max(target.getWorld().getHighestBlockYAt(target) + 1, target.getY()));
             player.teleport(target);
-            markNoFallDamage(player.getUniqueId());
+            markNoFallDamage(player);
+
             plugin.messages().send(player, "border.teleported");
         }
     }
@@ -473,7 +474,7 @@ public class Match {
         double boost = plugin.configs().config().getDouble("elytra.jump-boost", 0.4);
         player.setVelocity(player.getLocation().getDirection().multiply(boost).setY(-0.2));
         giveElytra(player);
-        markNoFallDamage(player.getUniqueId());
+        markNoFallDamage(player);
         plugin.messages().send(player, "match.jumped");
         plugin.messages().sound(player, "jump");
         if (plugin.configs().config().getBoolean("effects.jump", true)) {

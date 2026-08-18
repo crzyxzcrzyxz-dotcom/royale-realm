@@ -191,8 +191,9 @@ public class GameListener implements Listener {
             return;
         }
         if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            if (match.consumeNoFallDamage(player.getUniqueId()) || participant.gliding() || !participant.landed()) {
+            if (match.consumeNoFallDamage(player) || participant.gliding() || !participant.landed()) {
                 event.setCancelled(true);
+
                 return;
             }
         }
