@@ -73,7 +73,7 @@ public class SpecialItemManager {
             v.setY(v.getY() + 0.5);
             player.setVelocity(v);
             player.playSound(player.getLocation(), Sound.ENTITY_ENDER_PEARL_THROW, 1f, 1f);
-            plugin.game().markNoFallDamage(player.getUniqueId());
+            plugin.game().markNoFallDamage(player);
         }
     }
 
@@ -115,6 +115,6 @@ public class SpecialItemManager {
 
     public void launch(Player player) {
         player.setVelocity(player.getLocation().getDirection().multiply(1.5).setY(1.5));
-        plugin.game().markNoFallDamage(player.getUniqueId());
+        plugin.game().markNoFallDamage(player);
     }
 }
