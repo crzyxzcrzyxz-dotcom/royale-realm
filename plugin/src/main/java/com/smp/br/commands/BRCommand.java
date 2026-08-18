@@ -377,8 +377,7 @@ public class BRCommand implements CommandExecutor, TabCompleter {
         if (player == null) return;
         
         String id = args[1].toLowerCase();
-        ConfigurationSection maps = plugin.configs().maps().getConfigurationSection("");
-        if (maps == null) maps = plugin.configs().maps().createSection("");
+        ConfigurationSection maps = plugin.configs().maps();
         
         ConfigurationSection mapSec = maps.createSection(id);
         mapSec.set("name", id.toUpperCase());
@@ -391,6 +390,9 @@ public class BRCommand implements CommandExecutor, TabCompleter {
         mapSec.set("bus.start.z", round(player.getLocation().getZ()));
         mapSec.set("bus.end.x", round(player.getLocation().getX() + 400));
         mapSec.set("bus.end.z", round(player.getLocation().getZ()));
+        plugin.configs().saveMaps();
+        plugin.reloadAll();
+        plugin.messages().sendRaw(sender, "&aMapa '" + id + "' criado com sucesso!");
         
         plugin.configs().saveMaps();
         plugin.reloadAll();

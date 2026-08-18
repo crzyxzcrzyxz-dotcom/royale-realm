@@ -276,6 +276,7 @@ public class Match {
 
     public void tick() {
         tickCounter++;
+        zone.tickSmooth();
         boolean secondTick = tickCounter % 20 == 0;
 
         switch (state) {
@@ -344,7 +345,6 @@ public class Match {
         int min = plugin.configs().config().getInt("match.min-players", 2);
         int board = Math.max(0, plugin.configs().config().getInt("bus.board-seconds", 5));
         if (countdown == board && participants.size() >= min && !bus.isRunning()) {
-            // embarque: os jogadores sao puxados para o onibus, que fica PARADO
             startBus();
             return;
         }
@@ -380,7 +380,7 @@ public class Match {
 
     private void tickGame() {
         elapsedSeconds++;
-        boolean evolving = zone.tickSecond();
+        zone.tickSecond();
         state = zone.mode() == ZoneManager.Mode.FINAL ? GameState.FINAL
                 : (zone.mode() == ZoneManager.Mode.SHRINKING ? GameState.STORM : GameState.ACTIVE);
         if (!evolving && zone.mode() != ZoneManager.Mode.FINAL) {
@@ -405,7 +405,7 @@ public class Match {
 
         int max = plugin.configs().config().getInt("match.max-duration-seconds", 1800);
         if (max > 0 && elapsedSeconds >= max) {
-            end(bestPlayer());
+            end(winner);
             return;
         }
         checkWin();
