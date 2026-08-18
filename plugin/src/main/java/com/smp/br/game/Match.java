@@ -255,7 +255,6 @@ public class Match {
     public void removeAndRestore(UUID uuid) {
         Participant participant = participants.remove(uuid);
         Player player = Bukkit.getPlayer(uuid);
-        plugin.specialItems().clear(uuid);
         noFallDamage.remove(uuid);
         if (player != null) {
             bus.eject(player);
@@ -276,8 +275,8 @@ public class Match {
 
     public void tick() {
         tickCounter++;
-        zone.tickSmooth();
         boolean secondTick = tickCounter % 20 == 0;
+
 
         switch (state) {
             case COUNTDOWN -> {
@@ -383,9 +382,7 @@ public class Match {
         zone.tickSecond();
         state = zone.mode() == ZoneManager.Mode.FINAL ? GameState.FINAL
                 : (zone.mode() == ZoneManager.Mode.SHRINKING ? GameState.STORM : GameState.ACTIVE);
-        if (!evolving && zone.mode() != ZoneManager.Mode.FINAL) {
-            state = GameState.FINAL;
-        }
+
 
         for (Participant participant : new ArrayList<>(participants.values())) {
             Player player = Bukkit.getPlayer(participant.uuid());
@@ -405,9 +402,10 @@ public class Match {
 
         int max = plugin.configs().config().getInt("match.max-duration-seconds", 1800);
         if (max > 0 && elapsedSeconds >= max) {
-            end(participants.get(winner));
+            checkWin();
             return;
         }
+
         checkWin();
     }
 
@@ -758,7 +756,8 @@ public class Match {
             removeAndRestore(uuid);
         }
         bus.stop();
-        zone.cleanup();
+        zone.stop();
+
         state = GameState.REGENERATING;
         plugin.regeneration().restore(map, () -> {
             plugin.regeneration().stopTracking();
@@ -774,7 +773,8 @@ public class Match {
         }
         participants.clear();
         bus.stop();
-        zone.cleanup();
+        zone.stop();
+
 
         boolean reset = plugin.configs().config().getBoolean("regeneration.enabled", true)
                 && plugin.configs().config().getBoolean("regeneration.reset-on-end", true);
@@ -802,7 +802,7 @@ public class Match {
         }
         participants.clear();
         bus.stop();
-        zone.cleanup();
+        zone.stop();
         plugin.regeneration().stopTracking();
     }
 }
