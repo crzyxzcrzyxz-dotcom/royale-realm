@@ -22,14 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Cria e executa todos os itens especiais.
- */
 public class SpecialItemManager {
 
     private final BattleRoyalePlugin plugin;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
-    private final Map<UUID, Integer> channeling = new HashMap<>();
 
     public SpecialItemManager(BattleRoyalePlugin plugin) {
         this.plugin = plugin;
@@ -38,7 +34,8 @@ public class SpecialItemManager {
     public ItemStack create(String id) {
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials." + id);
         if (section == null || !section.getBoolean("enabled", true)) return null;
-        ItemStack item = new ItemStack(Material.valueOf(section.getString("material", "PAPER")));
+        Material mat = Material.matchMaterial(section.getString("material", "PAPER"));
+        ItemStack item = new ItemStack(mat == null ? Material.PAPER : mat);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Text.comp(section.getString("name", id)));
         meta.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
@@ -50,6 +47,10 @@ public class SpecialItemManager {
     public String idOf(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return null;
         return item.getItemMeta().getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
+    }
+
+    public void clear(UUID uuid) {
+        cooldowns.remove(uuid);
     }
 
     public boolean use(Player player, ItemStack item, String id) {
@@ -95,7 +96,7 @@ public class SpecialItemManager {
     }
 
     private void throwProjectile(Player player, ItemStack item, String id) {
-        Projectile p = (id.equals("jump-pad") ? player.launchProjectile(Snowball.class) : player.launchProjectile(Snowball.class));
+        Projectile p = player.launchProjectile(Snowball.class);
         p.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
         item.setAmount(item.getAmount() - 1);
     }

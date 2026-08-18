@@ -14,10 +14,6 @@ import org.bukkit.util.Vector;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Gerencia a Safe Zone e a Tempestade.
- * Implementa fechamento aleatorio estilo Fortnite e correcao de dano fantasma.
- */
 public class ZoneManager {
 
     private final BattleRoyalePlugin plugin;
@@ -53,12 +49,11 @@ public class ZoneManager {
         center = new Vector(map.centerX(), 0, map.centerZ());
         radius = map.radius();
         
-        // Sincroniza visualmente a borda do mundo se possivel
         if (map.world() != null) {
             WorldBorder wb = map.world().getWorldBorder();
             wb.setCenter(center.getX(), center.getZ());
             wb.setSize(radius * 2);
-            wb.setDamageAmount(0); // Dano gerenciado pelo plugin
+            wb.setDamageAmount(0);
             wb.setWarningDistance(5);
         }
         
@@ -69,7 +64,6 @@ public class ZoneManager {
         phase++;
         mode = Mode.WAITING;
         
-        // Configura as fases (exemplo: 1=400, 2=200, 3=100, 4=50, 5=20, 6=0)
         double[] radiusSteps = {map.radius(), map.radius() * 0.7, map.radius() * 0.4, map.radius() * 0.2, 50, 10, 0};
         if (phase >= radiusSteps.length) {
             mode = Mode.FINAL;
@@ -150,7 +144,6 @@ public class ZoneManager {
             center.setZ(startCenter.getZ() + (nextCenter.getZ() - startCenter.getZ()) * ratio);
             radius = startRadius + (nextRadius - startRadius) * ratio;
             
-            // Sincroniza WorldBorder em tempo real
             if (map.world() != null) {
                 WorldBorder wb = map.world().getWorldBorder();
                 wb.setCenter(center.getX(), center.getZ());
@@ -160,6 +153,14 @@ public class ZoneManager {
         
         updateBossBar();
         return true;
+    }
+
+    public void tickSmooth() {
+        // Agora o movimento e feito no tickSecond para sincronia, mas deixamos o stub
+    }
+
+    public void attach(Player player) {
+        if (bossBar != null) player.showBossBar(bossBar);
     }
 
     private void updateBossBar() {
@@ -179,6 +180,10 @@ public class ZoneManager {
 
     public void detach(Player player) {
         if (bossBar != null) player.hideBossBar(bossBar);
+    }
+
+    public void cleanup() {
+        stop();
     }
 
     public void stop() {
@@ -217,11 +222,9 @@ public class ZoneManager {
     }
 
     public void showRing(Player player) {
-        // O WorldBorder ja faz o trabalho visual, as particulas sao secundarias
         if (!plugin.configs().config().getBoolean("effects.zone-ring", true)) return;
         if (radius <= 0) return;
         
-        // Simples indicacao visual ao redor do jogador
         Location loc = player.getLocation();
         double dx = loc.getX() - center.getX();
         double dz = loc.getZ() - center.getZ();

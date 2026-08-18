@@ -405,7 +405,7 @@ public class Match {
 
         int max = plugin.configs().config().getInt("match.max-duration-seconds", 1800);
         if (max > 0 && elapsedSeconds >= max) {
-            end(winner);
+            end(participants.get(winner));
             return;
         }
         checkWin();
