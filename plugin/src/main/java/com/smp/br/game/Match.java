@@ -121,13 +121,14 @@ public class Match {
                 || state == GameState.STORM || state == GameState.FINAL;
     }
 
-    public void markNoFallDamage(UUID uuid) {
-        noFallDamage.add(uuid);
+    public void markNoFallDamage(Player player) {
+        noFallDamage.add(player.getUniqueId());
     }
 
-    public boolean consumeNoFallDamage(UUID uuid) {
-        return noFallDamage.remove(uuid);
+    public boolean consumeNoFallDamage(Player player) {
+        return noFallDamage.remove(player.getUniqueId());
     }
+
 
     // ------------------------------------------------------------------
     // Fase de entrada
@@ -507,7 +508,8 @@ public class Match {
         player.setGliding(false);
         player.setFallDistance(0);
         removeTemporaryElytra(player);
-        markNoFallDamage(player.getUniqueId());
+        markNoFallDamage(player);
+
         giveKit(player);
         plugin.messages().send(player, "match.landed");
         plugin.messages().sound(player, "land");
