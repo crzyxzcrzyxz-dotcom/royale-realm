@@ -39,6 +39,7 @@ public class SpecialItemManager {
     private final BattleRoyalePlugin plugin;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final Map<UUID, Integer> channeling = new HashMap<>();
+    private final Map<UUID, String> activeProjectiles = new HashMap<>();
 
     public SpecialItemManager(BattleRoyalePlugin plugin) {
         this.plugin = plugin;
@@ -124,7 +125,10 @@ public class SpecialItemManager {
                 return useImpulse(player, item);
             }
             case "smoke-bomb" -> {
-                return throwSmoke(player, item);
+                return throwProjectile(player, item, "smoke-bomb");
+            }
+            case "jump-pad" -> {
+                return throwProjectile(player, item, "jump-pad");
             }
             default -> {
                 return false;
@@ -140,7 +144,7 @@ public class SpecialItemManager {
             plugin.messages().sound(player, "error");
             return true;
         }
-        double range = section.getInt("range", 28);
+        double range = section.getDouble("range", 30.0);
         RayTraceResult result = player.getWorld().rayTraceBlocks(player.getEyeLocation(),
                 player.getEyeLocation().getDirection(), range, FluidCollisionMode.NEVER, true);
         if (result == null || result.getHitBlock() == null) {
@@ -267,7 +271,9 @@ public class SpecialItemManager {
         if (section == null) return true;
         if (onCooldown(player, "bandage", section.getInt("cooldown-ticks", 30))) return true;
         addEffect(player, "regeneration", section.getInt("regen-seconds", 8) * 20, section.getInt("amplifier", 1));
-        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0);
+        double instant = section.getDouble("instant-health", 4.0);
+        player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + instant));
+        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 10, 0.3, 0.3, 0.3, 0);
         plugin.messages().sound(player, "join");
         item.setAmount(item.getAmount() - 1);
         setCooldown(player, "bandage", section.getInt("cooldown-ticks", 30));
@@ -300,9 +306,10 @@ public class SpecialItemManager {
         return true;
     }
 
-    private boolean throwSmoke(Player player, ItemStack item) {
+    private boolean throwProjectile(Player player, ItemStack item, String id) {
         Snowball ball = player.launchProjectile(Snowball.class);
-        ball.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, "smoke-bomb");
+        ball.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
+        activeProjectiles.put(ball.getUniqueId(), id);
         ball.setVelocity(player.getLocation().getDirection().multiply(1.3));
         player.playSound(player.getLocation(), "entity.snowball.throw", 1f, 1f);
         item.setAmount(item.getAmount() - 1);
@@ -311,18 +318,33 @@ public class SpecialItemManager {
 
     public void onProjectileHit(Projectile projectile) {
         String id = projectile.getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
-        if (!"smoke-bomb".equals(id)) return;
-        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.smoke-bomb");
-        double radius = section == null ? 5.0 : section.getDouble("radius", 5.0);
-        int blind = section == null ? 5 : section.getInt("blind-seconds", 5);
+        if (id == null) return;
+        activeProjectiles.remove(projectile.getUniqueId());
+        
         Location location = projectile.getLocation();
-        location.getWorld().spawnParticle(Particle.CAMPFIRE_SIGNAL_SMOKE, location, 120, radius / 2, 1.5, radius / 2,
-                0.02);
-        location.getWorld().playSound(location, "entity.generic.extinguish_fire", 1f, 0.7f);
-        for (Entity entity : location.getWorld().getNearbyEntities(location, radius, radius, radius)) {
-            if (!(entity instanceof Player other)) continue;
-            if (projectile.getShooter() instanceof Player shooter && shooter.equals(other)) continue;
-            addEffect(other, "blindness", blind * 20, 0);
+        if ("smoke-bomb".equals(id)) {
+            ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.smoke-bomb");
+            double radius = section == null ? 5.0 : section.getDouble("radius", 5.0);
+            int blind = section == null ? 5 : section.getInt("blind-seconds", 5);
+            location.getWorld().spawnParticle(Particle.CAMPFIRE_SIGNAL_SMOKE, location, 120, radius / 2, 1.5, radius / 2, 0.02);
+            location.getWorld().playSound(location, "entity.generic.extinguish_fire", 1f, 0.7f);
+            for (Entity entity : location.getWorld().getNearbyEntities(location, radius, radius, radius)) {
+                if (!(entity instanceof Player other)) continue;
+                if (projectile.getShooter() instanceof Player shooter && shooter.equals(other)) continue;
+                addEffect(other, "blindness", blind * 20, 0);
+            }
+        } else if ("jump-pad".equals(id)) {
+            location.getWorld().playSound(location, "entity.slime.block", 1f, 1f);
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    Block b = location.clone().add(x, 0, z).getBlock();
+                    if (b.getType().isAir() || b.getType() == Material.GRASS || b.isReplaceable()) {
+                        plugin.regeneration().record(b);
+                        b.setType(Material.SLIME_BLOCK);
+                    }
+                }
+            }
+            location.getWorld().spawnParticle(Particle.CLOUD, location, 30, 1.5, 0.5, 1.5, 0.05);
         }
     }
 
