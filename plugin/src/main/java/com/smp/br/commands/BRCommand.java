@@ -57,7 +57,6 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             case "regenerate", "reset" -> regenerate(sender);
             case "loot" -> loot(sender);
             case "debug" -> debug(sender);
-            case "create" -> create(sender, args);
             default -> help(sender);
         }
         return true;
@@ -366,39 +365,6 @@ public class BRCommand implements CommandExecutor, TabCompleter {
     }
 
     // ------------------------------------------------------------------
-
-    private void create(CommandSender sender, String[] args) {
-        if (!has(sender, "battleroyale.admin")) return;
-        if (args.length < 2) {
-            plugin.messages().sendRaw(sender, "&cUse: /br create <id_do_mapa>");
-            return;
-        }
-        Player player = player(sender);
-        if (player == null) return;
-        
-        String id = args[1].toLowerCase();
-        ConfigurationSection maps = plugin.configs().maps();
-        
-        ConfigurationSection mapSec = maps.createSection(id);
-        mapSec.set("name", id.toUpperCase());
-        mapSec.set("world", player.getWorld().getName());
-        mapSec.set("radius", 500);
-        mapSec.set("center.x", round(player.getLocation().getX()));
-        mapSec.set("center.z", round(player.getLocation().getZ()));
-        mapSec.set("bus.height", 150);
-        mapSec.set("bus.start.x", round(player.getLocation().getX() - 400));
-        mapSec.set("bus.start.z", round(player.getLocation().getZ()));
-        mapSec.set("bus.end.x", round(player.getLocation().getX() + 400));
-        mapSec.set("bus.end.z", round(player.getLocation().getZ()));
-        plugin.configs().saveMaps();
-        plugin.reloadAll();
-        plugin.messages().sendRaw(sender, "&aMapa '" + id + "' criado com sucesso!");
-        
-        plugin.configs().saveMaps();
-        plugin.reloadAll();
-        plugin.messages().sendRaw(sender, "&aMapa '&f" + id + "&a' criado com sucesso usando este mundo!");
-        plugin.messages().sendRaw(sender, "&7Use os comandos de setup para ajustar os limites e a rota do onibus.");
-    }
 
     private boolean has(CommandSender sender, String permission) {
         if (sender.hasPermission(permission) || sender.hasPermission("battleroyale.admin")) return true;

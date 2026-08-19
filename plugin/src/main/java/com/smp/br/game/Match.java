@@ -121,14 +121,13 @@ public class Match {
                 || state == GameState.STORM || state == GameState.FINAL;
     }
 
-    public void markNoFallDamage(Player player) {
-        noFallDamage.add(player.getUniqueId());
+    public void markNoFallDamage(UUID uuid) {
+        noFallDamage.add(uuid);
     }
 
-    public boolean consumeNoFallDamage(Player player) {
-        return noFallDamage.remove(player.getUniqueId());
+    public boolean consumeNoFallDamage(UUID uuid) {
+        return noFallDamage.remove(uuid);
     }
-
 
     // ------------------------------------------------------------------
     // Fase de entrada
@@ -256,6 +255,7 @@ public class Match {
     public void removeAndRestore(UUID uuid) {
         Participant participant = participants.remove(uuid);
         Player player = Bukkit.getPlayer(uuid);
+        plugin.specialItems().clear(uuid);
         noFallDamage.remove(uuid);
         if (player != null) {
             bus.eject(player);
@@ -277,7 +277,6 @@ public class Match {
     public void tick() {
         tickCounter++;
         boolean secondTick = tickCounter % 20 == 0;
-
 
         switch (state) {
             case COUNTDOWN -> {
@@ -345,6 +344,7 @@ public class Match {
         int min = plugin.configs().config().getInt("match.min-players", 2);
         int board = Math.max(0, plugin.configs().config().getInt("bus.board-seconds", 5));
         if (countdown == board && participants.size() >= min && !bus.isRunning()) {
+            // embarque: os jogadores sao puxados para o onibus, que fica PARADO
             startBus();
             return;
         }
@@ -380,10 +380,12 @@ public class Match {
 
     private void tickGame() {
         elapsedSeconds++;
-        zone.tickSecond();
+        boolean evolving = zone.tickSecond();
         state = zone.mode() == ZoneManager.Mode.FINAL ? GameState.FINAL
                 : (zone.mode() == ZoneManager.Mode.SHRINKING ? GameState.STORM : GameState.ACTIVE);
-
+        if (!evolving && zone.mode() != ZoneManager.Mode.FINAL) {
+            state = GameState.FINAL;
+        }
 
         for (Participant participant : new ArrayList<>(participants.values())) {
             Player player = Bukkit.getPlayer(participant.uuid());
@@ -403,10 +405,9 @@ public class Match {
 
         int max = plugin.configs().config().getInt("match.max-duration-seconds", 1800);
         if (max > 0 && elapsedSeconds >= max) {
-            checkWin();
+            end(bestPlayer());
             return;
         }
-
         checkWin();
     }
 
@@ -431,8 +432,7 @@ public class Match {
             target.setZ(map.centerZ() + dz * scale);
             target.setY(Math.max(target.getWorld().getHighestBlockYAt(target) + 1, target.getY()));
             player.teleport(target);
-            markNoFallDamage(player);
-
+            markNoFallDamage(player.getUniqueId());
             plugin.messages().send(player, "border.teleported");
         }
     }
@@ -474,7 +474,7 @@ public class Match {
         double boost = plugin.configs().config().getDouble("elytra.jump-boost", 0.4);
         player.setVelocity(player.getLocation().getDirection().multiply(boost).setY(-0.2));
         giveElytra(player);
-        markNoFallDamage(player);
+        markNoFallDamage(player.getUniqueId());
         plugin.messages().send(player, "match.jumped");
         plugin.messages().sound(player, "jump");
         if (plugin.configs().config().getBoolean("effects.jump", true)) {
@@ -509,8 +509,7 @@ public class Match {
         player.setGliding(false);
         player.setFallDistance(0);
         removeTemporaryElytra(player);
-        markNoFallDamage(player);
-
+        markNoFallDamage(player.getUniqueId());
         giveKit(player);
         plugin.messages().send(player, "match.landed");
         plugin.messages().sound(player, "land");
@@ -759,8 +758,7 @@ public class Match {
             removeAndRestore(uuid);
         }
         bus.stop();
-        zone.stop();
-
+        zone.cleanup();
         state = GameState.REGENERATING;
         plugin.regeneration().restore(map, () -> {
             plugin.regeneration().stopTracking();
@@ -776,8 +774,7 @@ public class Match {
         }
         participants.clear();
         bus.stop();
-        zone.stop();
-
+        zone.cleanup();
 
         boolean reset = plugin.configs().config().getBoolean("regeneration.enabled", true)
                 && plugin.configs().config().getBoolean("regeneration.reset-on-end", true);
@@ -805,7 +802,7 @@ public class Match {
         }
         participants.clear();
         bus.stop();
-        zone.stop();
+        zone.cleanup();
         plugin.regeneration().stopTracking();
     }
 }

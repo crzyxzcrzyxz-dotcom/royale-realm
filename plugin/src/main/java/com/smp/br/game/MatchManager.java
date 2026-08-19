@@ -137,9 +137,8 @@ public class MatchManager {
     }
 
     public void markNoFallDamage(Player player) {
-        if (current != null) current.markNoFallDamage(player);
+        if (current != null) current.markNoFallDamage(player.getUniqueId());
     }
-
 
     public boolean isInsidePlayableArea(Location location) {
         if (current == null) return true;

@@ -3,10 +3,19 @@ package com.smp.br.items;
 import com.smp.br.BattleRoyalePlugin;
 import com.smp.br.util.Keys;
 import com.smp.br.util.Text;
-import org.bukkit.*;
-import org.bukkit.attribute.Attribute;
+import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.FluidCollisionMode;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.Registry;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.*;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Snowball;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -22,99 +31,366 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Cria e executa todos os itens especiais (Grappler, Medkit, Launch Pad, etc).
+ */
 public class SpecialItemManager {
 
     private final BattleRoyalePlugin plugin;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
+    private final Map<UUID, Integer> channeling = new HashMap<>();
 
     public SpecialItemManager(BattleRoyalePlugin plugin) {
         this.plugin = plugin;
     }
 
+    // ------------------------------------------------------------------
+    // Criacao
+    // ------------------------------------------------------------------
+
     public ItemStack create(String id) {
+        if (id == null) return null;
+        if (id.equalsIgnoreCase("grappler")) return createGrappler();
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials." + id);
         if (section == null || !section.getBoolean("enabled", true)) return null;
-        Material mat = Material.matchMaterial(section.getString("material", "PAPER"));
-        ItemStack item = new ItemStack(mat == null ? Material.PAPER : mat);
+        Material material = material(section.getString("material", "PAPER"), Material.PAPER);
+        ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Text.comp(section.getString("name", id)));
-        meta.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
-        meta.getPersistentDataContainer().set(Keys.TEMP, PersistentDataType.BYTE, (byte) 1);
-        item.setItemMeta(meta);
+        if (meta != null) {
+            meta.displayName(Text.comp(section.getString("name", id)));
+            List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+            for (String line : section.getStringList("lore")) {
+                lore.add(Text.comp(line));
+            }
+            meta.lore(lore);
+            meta.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id.toLowerCase());
+            meta.getPersistentDataContainer().set(Keys.TEMP, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    public ItemStack createGrappler() {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("grappler");
+        if (section == null || !section.getBoolean("enabled", true)) return null;
+        int uses = section.getInt("uses", 12);
+        ItemStack item = new ItemStack(material(section.getString("material", "FISHING_ROD"), Material.FISHING_ROD));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Text.comp(section.getString("name", "&b&lGRAPPLER")));
+            List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+            for (String line : section.getStringList("lore")) {
+                lore.add(Text.comp(line.replace("%range%", String.valueOf(section.getInt("range", 28)))
+                        .replace("%uses%", String.valueOf(uses))));
+            }
+            meta.lore(lore);
+            meta.setUnbreakable(true);
+            meta.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, "grappler");
+            meta.getPersistentDataContainer().set(Keys.USES, PersistentDataType.INTEGER, uses);
+            meta.getPersistentDataContainer().set(Keys.TEMP, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
+        }
+        item.setAmount(1);
         return item;
     }
 
     public String idOf(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return null;
-        return item.getItemMeta().getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return null;
+        return meta.getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
     }
 
-    public void clear(UUID uuid) {
-        cooldowns.remove(uuid);
-    }
+    // ------------------------------------------------------------------
+    // Uso
+    // ------------------------------------------------------------------
 
+    /** @return true se o evento deve ser cancelado. */
     public boolean use(Player player, ItemStack item, String id) {
         switch (id) {
-            case "grappler" -> useGrappler(player, item);
-            case "medkit" -> useMedkit(player, item);
-            case "bandage" -> useBandage(player, item);
-            case "shield-potion" -> useShield(player, item);
-            case "jump-pad" -> throwProjectile(player, item, "jump-pad");
-            case "smoke-bomb" -> throwProjectile(player, item, "smoke-bomb");
-        }
-        return true;
-    }
-
-    private void useGrappler(Player player, ItemStack item) {
-        ConfigurationSection sec = plugin.configs().items().getConfigurationSection("grappler");
-        RayTraceResult result = player.getWorld().rayTraceBlocks(player.getEyeLocation(), player.getLocation().getDirection(), sec.getDouble("range", 30));
-        if (result != null && result.getHitBlock() != null) {
-            Vector v = result.getHitPosition().subtract(player.getLocation().toVector()).normalize().multiply(sec.getDouble("power", 1.5));
-            v.setY(v.getY() + 0.5);
-            player.setVelocity(v);
-            player.playSound(player.getLocation(), Sound.ENTITY_ENDER_PEARL_THROW, 1f, 1f);
-            plugin.game().markNoFallDamage(player);
-        }
-    }
-
-    private void useMedkit(Player player, ItemStack item) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 2));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.INSTANT_HEALTH, 1, 1));
-        player.setHealth(Math.min(player.getAttribute(Attribute.MAX_HEALTH).getValue(), player.getHealth() + 4));
-        item.setAmount(item.getAmount() - 1);
-    }
-
-    private void useBandage(Player player, ItemStack item) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 60, 1));
-        player.setHealth(Math.min(player.getAttribute(Attribute.MAX_HEALTH).getValue(), player.getHealth() + 2));
-        item.setAmount(item.getAmount() - 1);
-    }
-
-    private void useShield(Player player, ItemStack item) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 600, 1));
-        item.setAmount(item.getAmount() - 1);
-    }
-
-    private void throwProjectile(Player player, ItemStack item, String id) {
-        Projectile p = player.launchProjectile(Snowball.class);
-        p.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
-        item.setAmount(item.getAmount() - 1);
-    }
-
-    public void onProjectileHit(Entity p) {
-        String id = p.getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
-        if ("jump-pad".equals(id)) {
-            Location loc = p.getLocation();
-            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
-                Location b = loc.clone().add(x, -1, z);
-                b.getBlock().setType(Material.SLIME_BLOCK);
-                plugin.regeneration().record(b.getBlock());
+            case "grappler" -> {
+                return useGrappler(player, item);
+            }
+            case "medkit" -> {
+                return useMedkit(player, item);
+            }
+            case "shield-potion" -> {
+                return useShieldPotion(player, item);
+            }
+            case "bandage" -> {
+                return useBandage(player, item);
+            }
+            case "impulse" -> {
+                return useImpulse(player, item);
+            }
+            case "smoke-bomb" -> {
+                return throwSmoke(player, item);
+            }
+            default -> {
+                return false;
             }
         }
     }
 
-    public void launch(Player player) {
-        player.setVelocity(player.getLocation().getDirection().multiply(1.5).setY(1.5));
+    private boolean useGrappler(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("grappler");
+        if (section == null) return true;
+        if (onCooldown(player, "grappler", section.getInt("cooldown-ticks", 30))) {
+            plugin.messages().send(player, "special.grappler-cooldown");
+            plugin.messages().sound(player, "error");
+            return true;
+        }
+        double range = section.getInt("range", 28);
+        RayTraceResult result = player.getWorld().rayTraceBlocks(player.getEyeLocation(),
+                player.getEyeLocation().getDirection(), range, FluidCollisionMode.NEVER, true);
+        if (result == null || result.getHitBlock() == null) {
+            plugin.messages().send(player, "special.grappler-no-target");
+            plugin.messages().sound(player, "error");
+            return true;
+        }
+        Location target = result.getHitPosition().toLocation(player.getWorld());
+        if (!plugin.matches().isInsidePlayableArea(target)) {
+            plugin.messages().send(player, "special.grappler-no-target");
+            return true;
+        }
+        // linha visual
+        Location eye = player.getEyeLocation();
+        Vector step = target.toVector().subtract(eye.toVector());
+        double distance = step.length();
+        if (distance < 0.5) return true;
+        Vector unit = step.clone().normalize().multiply(0.5);
+        Location point = eye.clone();
+        for (double travelled = 0; travelled < distance; travelled += 0.5) {
+            point.add(unit);
+            player.getWorld().spawnParticle(Particle.CRIT, point, 1, 0, 0, 0, 0);
+        }
+
+        Vector pull = target.toVector().subtract(player.getLocation().toVector()).normalize()
+                .multiply(section.getDouble("power", 1.35));
+        pull.setY(Math.max(pull.getY(), 0) + section.getDouble("vertical-bonus", 0.35));
+        player.setVelocity(pull);
+        player.setFallDistance(0);
+        plugin.messages().sound(player, "grappler");
+        plugin.messages().sound(player, "grappler-pull");
         plugin.game().markNoFallDamage(player);
+
+        int uses = consumeUse(player, item);
+        if (uses > 0) {
+            plugin.messages().send(player, "special.grappler-uses", "%uses%", String.valueOf(uses));
+        } else {
+            plugin.messages().send(player, "special.grappler-empty");
+        }
+        setCooldown(player, "grappler", section.getInt("cooldown-ticks", 30));
+        return true;
+    }
+
+    private int consumeUse(Player player, ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return 0;
+        Integer uses = meta.getPersistentDataContainer().get(Keys.USES, PersistentDataType.INTEGER);
+        int left = (uses == null ? 1 : uses) - 1;
+        if (left <= 0) {
+            item.setAmount(0);
+            return 0;
+        }
+        meta.getPersistentDataContainer().set(Keys.USES, PersistentDataType.INTEGER, left);
+        List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("grappler");
+        if (section != null) {
+            for (String line : section.getStringList("lore")) {
+                lore.add(Text.comp(line.replace("%range%", String.valueOf(section.getInt("range", 28)))
+                        .replace("%uses%", String.valueOf(left))));
+            }
+        }
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return left;
+    }
+
+    private boolean useMedkit(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.medkit");
+        if (section == null) return true;
+        if (channeling.containsKey(player.getUniqueId())) return true;
+        int ticks = section.getInt("channel-ticks", 60);
+        double heal = section.getDouble("heal", 20.0);
+        Location origin = player.getLocation().clone();
+        plugin.messages().send(player, "special.medkit-start", "%time%", String.valueOf(ticks / 20));
+        int taskId = new BukkitRunnable() {
+            int elapsed = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead()) {
+                    channeling.remove(player.getUniqueId());
+                    cancel();
+                    return;
+                }
+                if (player.getLocation().distanceSquared(origin) > 1.5) {
+                    plugin.messages().send(player, "special.medkit-cancel");
+                    channeling.remove(player.getUniqueId());
+                    cancel();
+                    return;
+                }
+                player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 3, 0.3, 0.3, 0.3, 0);
+                elapsed += 5;
+                if (elapsed >= ticks) {
+                    double max = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH) == null ? 20
+                            : player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+                    player.setHealth(Math.min(max, player.getHealth() + heal));
+                    removeOne(player, "medkit");
+                    plugin.messages().send(player, "special.medkit-done");
+                    plugin.messages().sound(player, "join");
+                    channeling.remove(player.getUniqueId());
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 5L, 5L).getTaskId();
+        channeling.put(player.getUniqueId(), taskId);
+        return true;
+    }
+
+    private boolean useShieldPotion(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.shield-potion");
+        if (section == null) return true;
+        if (onCooldown(player, "shield", section.getInt("cooldown-ticks", 40))) return true;
+        addEffect(player, "absorption", section.getInt("absorption-seconds", 90) * 20, 1);
+        addEffect(player, "resistance", section.getInt("resistance-seconds", 8) * 20, 1);
+        player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(0, 1, 0), 20, 0.4, 0.6, 0.4, 0.02);
+        plugin.messages().sound(player, "join");
+        item.setAmount(item.getAmount() - 1);
+        setCooldown(player, "shield", section.getInt("cooldown-ticks", 40));
+        return true;
+    }
+
+    private boolean useBandage(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.bandage");
+        if (section == null) return true;
+        if (onCooldown(player, "bandage", section.getInt("cooldown-ticks", 30))) return true;
+        addEffect(player, "regeneration", section.getInt("regen-seconds", 8) * 20, section.getInt("amplifier", 1));
+        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0);
+        plugin.messages().sound(player, "join");
+        item.setAmount(item.getAmount() - 1);
+        setCooldown(player, "bandage", section.getInt("cooldown-ticks", 30));
+        return true;
+    }
+
+    private boolean useImpulse(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.impulse");
+        if (section == null) return true;
+        if (onCooldown(player, "impulse", section.getInt("cooldown-ticks", 60))) return true;
+        double radius = section.getDouble("radius", 6.0);
+        double power = section.getDouble("power", 1.8);
+        Location center = player.getLocation();
+        for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (!(entity instanceof Player other)) continue;
+            Vector push = other.getLocation().toVector().subtract(center.toVector());
+            if (push.lengthSquared() < 0.01) push = new Vector(0, 1, 0);
+            push.normalize().multiply(power);
+            push.setY(Math.max(0.5, push.getY()));
+            other.setVelocity(push);
+            plugin.game().markNoFallDamage(other);
+        }
+        Vector self = player.getLocation().getDirection().multiply(-0.4).setY(power * 0.6);
+        player.setVelocity(self);
+        plugin.game().markNoFallDamage(player);
+        center.getWorld().spawnParticle(Particle.EXPLOSION, center, 1);
+        player.playSound(center, "entity.generic.explode", 1f, 1.4f);
+        item.setAmount(item.getAmount() - 1);
+        setCooldown(player, "impulse", section.getInt("cooldown-ticks", 60));
+        return true;
+    }
+
+    private boolean throwSmoke(Player player, ItemStack item) {
+        Snowball ball = player.launchProjectile(Snowball.class);
+        ball.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, "smoke-bomb");
+        ball.setVelocity(player.getLocation().getDirection().multiply(1.3));
+        player.playSound(player.getLocation(), "entity.snowball.throw", 1f, 1f);
+        item.setAmount(item.getAmount() - 1);
+        return true;
+    }
+
+    public void onProjectileHit(Projectile projectile) {
+        String id = projectile.getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
+        if (!"smoke-bomb".equals(id)) return;
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.smoke-bomb");
+        double radius = section == null ? 5.0 : section.getDouble("radius", 5.0);
+        int blind = section == null ? 5 : section.getInt("blind-seconds", 5);
+        Location location = projectile.getLocation();
+        location.getWorld().spawnParticle(Particle.CAMPFIRE_SIGNAL_SMOKE, location, 120, radius / 2, 1.5, radius / 2,
+                0.02);
+        location.getWorld().playSound(location, "entity.generic.extinguish_fire", 1f, 0.7f);
+        for (Entity entity : location.getWorld().getNearbyEntities(location, radius, radius, radius)) {
+            if (!(entity instanceof Player other)) continue;
+            if (projectile.getShooter() instanceof Player shooter && shooter.equals(other)) continue;
+            addEffect(other, "blindness", blind * 20, 0);
+        }
+    }
+
+    /** Launch pad: chamado quando o jogador pisa em um slime block do BR. */
+    public void launch(Player player) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.launch-pad");
+        if (section == null || !section.getBoolean("enabled", true)) return;
+        if (onCooldown(player, "launchpad", 20)) return;
+        Vector velocity = player.getLocation().getDirection().setY(0);
+        if (velocity.lengthSquared() > 0) {
+            velocity.normalize().multiply(section.getDouble("forward", 0.9));
+        }
+        velocity.setY(section.getDouble("power", 1.6));
+        player.setVelocity(velocity);
+        plugin.game().markNoFallDamage(player);
+        player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 20, 0.4, 0.1, 0.4, 0.05);
+        player.playSound(player.getLocation(), "entity.slime.squish", 1f, 1.2f);
+        setCooldown(player, "launchpad", 20);
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    private void removeOne(Player player, String id) {
+        for (ItemStack content : player.getInventory().getContents()) {
+            if (content == null) continue;
+            if (id.equals(idOf(content))) {
+                content.setAmount(content.getAmount() - 1);
+                return;
+            }
+        }
+    }
+
+    public void addEffect(Player player, String key, int ticks, int amplifier) {
+        PotionEffectType type = Registry.EFFECT.get(NamespacedKey.minecraft(key));
+        if (type == null) return;
+        player.addPotionEffect(new PotionEffect(type, ticks, amplifier, false, true, true));
+    }
+
+    private boolean onCooldown(Player player, String key, int ticks) {
+        Long until = cooldowns.get(cooldownKey(player, key));
+        return until != null && until > System.currentTimeMillis();
+    }
+
+    private void setCooldown(Player player, String key, int ticks) {
+        cooldowns.put(cooldownKey(player, key), System.currentTimeMillis() + ticks * 50L);
+    }
+
+    private UUID cooldownKey(Player player, String key) {
+        return UUID.nameUUIDFromBytes((player.getUniqueId() + ":" + key).getBytes());
+    }
+
+    public void clear(UUID uuid) {
+        Integer task = channeling.remove(uuid);
+        if (task != null) {
+            Bukkit.getScheduler().cancelTask(task);
+        }
+    }
+
+    public static Material material(String name, Material fallback) {
+        if (name == null) return fallback;
+        Material material = Material.matchMaterial(name.toUpperCase());
+        return material == null ? fallback : material;
+    }
+
+    @SuppressWarnings("unused")
+    private Color unused() {
+        return Color.WHITE;
     }
 }
