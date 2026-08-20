@@ -114,11 +114,18 @@ zone:
   # so escolhe centros onde existe terreno solido
   terrain-check: true
   terrain-tries: 40
+  # Por padrao a primeira borda cobre todo o raio do mapa. /br setzone sobrescreve isso.
+  initial-use-map-settings: false
 
 death:
   # ao morrer, os itens ficam num bau no local da morte
   chest: true
   chest-glow: true
+
+map-creation:
+  # /br criar <nome> registra o mundo atual com estes padroes
+  default-radius: 400
+  default-bus-height: 170
 
 border:
   # TELEPORT ou ELIMINATE

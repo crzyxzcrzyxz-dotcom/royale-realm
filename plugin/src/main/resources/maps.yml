@@ -31,6 +31,8 @@ maps:
       speed: 0.9          # blocos por tick
       duration-seconds: 0 # se > 0, sobrepoe a velocidade
     zone:
+      initial:
+        configured: false
       # primeira zona
       first:
         x: 0.0

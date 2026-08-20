@@ -12,6 +12,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionType;
 
@@ -175,6 +176,7 @@ public class LootManager {
             for (String enchantEntry : entry.enchants()) {
                 applyEnchant(meta, enchantEntry, rarity);
             }
+            applyRarityBonus(meta, material, rarity);
             if (entry.potion() != null && meta instanceof PotionMeta potionMeta) {
                 try {
                     potionMeta.setBasePotionType(PotionType.valueOf(entry.potion().toUpperCase()));
@@ -204,6 +206,33 @@ public class LootManager {
         // nunca ultrapassa o limite vanilla
         level = Math.max(1, Math.min(level, enchantment.getMaxLevel()));
         meta.addEnchant(enchantment, level, false);
+    }
+
+    private void applyRarityBonus(ItemMeta meta, Material material, Rarity rarity) {
+        ConfigurationSection bonus = plugin.configs().loot().getConfigurationSection("bonus." + rarity.name());
+        if (bonus == null || rarity == Rarity.COMMON) return;
+        String name = material.name();
+        int unbreaking = bonus.getInt("unbreaking", 0);
+        int level = 0;
+        String enchant = null;
+        if (name.endsWith("_SWORD") || name.endsWith("_AXE")) {
+            level = bonus.getInt("weapon", 0);
+            enchant = "sharpness";
+        } else if (name.endsWith("_HELMET") || name.endsWith("_CHESTPLATE")
+                || name.endsWith("_LEGGINGS") || name.endsWith("_BOOTS")) {
+            level = bonus.getInt("armor", 0);
+            enchant = "protection";
+        } else if (material == Material.BOW) {
+            level = bonus.getInt("bow", 0);
+            enchant = "power";
+        } else if (material == Material.CROSSBOW) {
+            level = Math.min(3, bonus.getInt("bow", 0));
+            enchant = "quick_charge";
+        }
+        if (enchant != null && level > 0) applyEnchant(meta, enchant + ":" + level, rarity);
+        if (unbreaking > 0 && meta instanceof Damageable) {
+            applyEnchant(meta, "unbreaking:" + unbreaking, rarity);
+        }
     }
 
     /** Aplica nome com estrelas e cor da raridade + marca o item como temporario. */
