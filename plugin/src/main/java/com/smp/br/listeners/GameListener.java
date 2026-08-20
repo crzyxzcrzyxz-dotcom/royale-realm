@@ -24,6 +24,8 @@ import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -33,6 +35,8 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.EntityDismountEvent;
@@ -185,7 +189,7 @@ public class GameListener implements Listener {
         Participant participant = match.participant(player.getUniqueId());
         if (participant == null) return;
 
-        if (match.state() == GameState.COUNTDOWN || match.state() == GameState.BUS
+        if (match.state() == GameState.COUNTDOWN || match.state() == GameState.BOARDING || match.state() == GameState.BUS
                 || match.state() == GameState.GLIDING || participant.spectating()) {
             event.setCancelled(true);
             return;
@@ -227,6 +231,13 @@ public class GameListener implements Listener {
             return;
         }
         Participant attackerParticipant = match.participant(attacker.getUniqueId());
+        Participant victimParticipant = match.participant(victim.getUniqueId());
+        if (attackerParticipant != null && victimParticipant != null
+                && attackerParticipant.team() == victimParticipant.team()
+                && !plugin.configs().config().getBoolean("teams.friendly-fire", false)) {
+            event.setCancelled(true);
+            return;
+        }
         if (attackerParticipant != null) {
             attackerParticipant.addDamageDealt(event.getFinalDamage());
         }
@@ -237,6 +248,7 @@ public class GameListener implements Listener {
         Player player = event.getEntity();
         Match match = match();
         if (match == null || !match.contains(player.getUniqueId())) return;
+        match.createDeathChest(player, new java.util.ArrayList<>(event.getDrops()), player.getLocation());
         event.getDrops().clear();
         event.setDroppedExp(0);
         event.setKeepLevel(true);
@@ -313,6 +325,30 @@ public class GameListener implements Listener {
             event.setCancelled(true);
             plugin.messages().send(player, "protection.build");
         }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        Match match = match();
+        Participant participant = match == null ? null : match.participant(event.getPlayer().getUniqueId());
+        if (participant == null) return;
+        if (!participant.alive() || !participant.landed()) {
+            event.setCancelled(true);
+            return;
+        }
+        plugin.regeneration().record(event.getBlockClicked().getRelative(event.getBlockFace()));
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBucketFill(PlayerBucketFillEvent event) {
+        Match match = match();
+        Participant participant = match == null ? null : match.participant(event.getPlayer().getUniqueId());
+        if (participant == null) return;
+        if (!participant.alive() || !participant.landed()) {
+            event.setCancelled(true);
+            return;
+        }
+        plugin.regeneration().record(event.getBlockClicked());
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -422,12 +458,34 @@ public class GameListener implements Listener {
         if (match == null) return;
         Participant participant = match.participant(player.getUniqueId());
         if (participant == null) return;
+        ItemStack current = event.getCurrentItem();
+        ItemStack cursor = event.getCursor();
+        boolean tempElytra = (current != null && current.getType() == Material.ELYTRA && Match.isTemporary(current))
+                || (cursor != null && cursor.getType() == Material.ELYTRA && Match.isTemporary(cursor));
+        if (tempElytra || event.getSlotType() == InventoryType.SlotType.ARMOR && participant.gliding()) {
+            event.setCancelled(true);
+            player.updateInventory();
+            return;
+        }
         if (participant.spectating() || !participant.landed()) {
             event.setCancelled(true);
             return;
         }
         if (player.getGameMode() == GameMode.SPECTATOR) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        Match match = match();
+        Participant participant = match == null ? null : match.participant(player.getUniqueId());
+        if (participant == null || !participant.gliding()) return;
+        if (event.getRawSlots().contains(6) || (event.getOldCursor().getType() == Material.ELYTRA
+                && Match.isTemporary(event.getOldCursor()))) {
+            event.setCancelled(true);
+            player.updateInventory();
         }
     }
 }

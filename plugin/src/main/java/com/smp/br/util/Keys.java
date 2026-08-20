@@ -9,6 +9,7 @@ public final class Keys {
     public static NamespacedKey USES;
     public static NamespacedKey TEMP;
     public static NamespacedKey RARITY;
+    public static NamespacedKey OWNER;
 
     private Keys() {
     }
@@ -18,5 +19,6 @@ public final class Keys {
         USES = new NamespacedKey(plugin, "uses");
         TEMP = new NamespacedKey(plugin, "temporary");
         RARITY = new NamespacedKey(plugin, "rarity");
+        OWNER = new NamespacedKey(plugin, "owner");
     }
 }

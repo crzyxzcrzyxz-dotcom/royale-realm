@@ -10,11 +10,12 @@ grappler:
     - "&7Clique direito para se lancar ate onde mira."
     - "&7Alcance: &f%range% blocos"
     - "&7Usos: &f%uses%"
-  range: 45
+  range: 64
   uses: 12
   cooldown-ticks: 25
   power: 1.45
   vertical-bonus: 0.45
+  max-power: 3.2
 
 specials:
   medkit:

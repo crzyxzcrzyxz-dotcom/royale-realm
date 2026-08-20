@@ -56,8 +56,11 @@ public class ZoneManager {
 
     public void start() {
         phase = 0;
-        center = new Vector(map.centerX(), 0, map.centerZ());
-        radius = Math.min(map.firstZoneRadius(), map.radius());
+        boolean configured = map.section().getBoolean("zone.initial.configured", false);
+        center = configured
+                ? new Vector(map.firstZoneX(), 0, map.firstZoneZ())
+                : new Vector(map.centerX(), 0, map.centerZ());
+        radius = configured ? Math.min(map.firstZoneRadius(), map.radius()) : map.radius();
         if (radius <= 0) radius = map.radius();
         initialRadius = radius;
         startCenter = center.clone();
@@ -164,7 +167,6 @@ public class ZoneManager {
             double x = center.getX() + Math.cos(angle) * distance;
             double z = center.getZ() + Math.sin(angle) * distance;
             Vector candidate = clampToMap(new Vector(x, 0, z), nextRadius);
-            if (i == 0) best = candidate;
             if (!plugin.configs().config().getBoolean("zone.terrain-check", true) || hasTerrain(candidate)) {
                 best = candidate;
                 break;
@@ -282,7 +284,7 @@ public class ZoneManager {
     public void applyStorm(Player player, boolean damageAllowed) {
         Location location = player.getLocation();
         World world = map.world();
-        if (world != null && !world.equals(location.getWorld())) return;
+        if (world == null || !world.equals(location.getWorld())) return;
         double distance = distanceToZone(location);
         if (distance <= tolerance()) {
             if (plugin.configs().config().getBoolean("zone.actionbar", true) && mode != Mode.FINAL) {

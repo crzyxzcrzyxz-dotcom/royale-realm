@@ -213,7 +213,8 @@ public class BusManager {
         int rows = Math.max(1, busLength - 2);
         double forward = -busLength / 2.0 + 1.5 + ((index / columns) % rows);
         double lateral = -((columns - 1) / 2.0) + (index % columns);
-        Vector offset = new Vector(forward, -1.0, lateral);
+        // O piso fica em -1.6; este offset deixa o assento dentro da cabine.
+        Vector offset = new Vector(forward, -0.15, lateral);
 
         ArmorStand seat = (ArmorStand) world.spawnEntity(offsetLocation(base, offset), EntityType.ARMOR_STAND);
         seat.setVisible(false);
@@ -222,14 +223,14 @@ public class BusManager {
         seat.setSilent(true);
         seat.setPersistent(false);
         seat.setBasePlate(false);
-        seat.setMarker(false);
+        seat.setMarker(true);
         seat.setCanTick(false);
         seats.put(player.getUniqueId(), seat);
         seatOffsets.put(player.getUniqueId(), offset);
 
         player.setGravity(false);
         player.setFallDistance(0);
-        player.teleport(offsetLocation(base, offset).add(0, 0.5, 0));
+        player.teleport(offsetLocation(base, offset));
         seat.addPassenger(player);
     }
 

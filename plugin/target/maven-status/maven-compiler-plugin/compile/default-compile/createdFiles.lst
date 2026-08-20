@@ -23,5 +23,6 @@ com/smp/br/commands/BRCommand.class
 com/smp/br/util/Keys.class
 com/smp/br/regen/RegenerationManager$2.class
 com/smp/br/game/MatchManager.class
+com/smp/br/items/SpecialItemManager$2.class
 com/smp/br/regen/RegenerationManager.class
 com/smp/br/loot/LootEntry.class

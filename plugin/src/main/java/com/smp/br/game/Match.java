@@ -15,6 +15,11 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Firework;
+import org.bukkit.FireworkEffect;
+import org.bukkit.Color;
+import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -43,6 +48,7 @@ public class Match {
 
     private GameState state = GameState.WAITING;
     private int countdown;
+    private int boardingSeconds;
     private int tickCounter;
     private int glideTicks;
     private int elapsedSeconds;
@@ -207,7 +213,9 @@ public class Match {
             return false;
         }
         plugin.playerData().prepareForMatch(player);
-        participants.put(player.getUniqueId(), new Participant(player.getUniqueId(), player.getName()));
+        Participant participant = new Participant(player.getUniqueId(), player.getName());
+        assignTeam(participant);
+        participants.put(player.getUniqueId(), participant);
         if (plugin.configs().config().getBoolean("match.teleport-on-join", false)) {
             Location start = map.start();
             if (start != null) player.teleport(start);
@@ -283,6 +291,10 @@ public class Match {
                 if (secondTick) tickCountdown();
                 holdParticipants();
             }
+            case BOARDING -> {
+                bus.tick();
+                if (secondTick) tickBoarding();
+            }
             case BUS -> {
                 if (!bus.tick()) {
                     forceEjectAll();
@@ -341,25 +353,30 @@ public class Match {
                         plugin.messages().raw("match.starting", "%time%", String.valueOf(Math.max(0, countdown))));
             }
         }
-        int min = plugin.configs().config().getInt("match.min-players", 2);
-        int board = Math.max(0, plugin.configs().config().getInt("bus.board-seconds", 5));
-        if (countdown == board && participants.size() >= min && !bus.isRunning()) {
-            // embarque: os jogadores sao puxados para o onibus, que fica PARADO
-            startBus();
-            return;
-        }
         if (countdown <= 0) {
+            int min = plugin.configs().config().getInt("match.min-players", 2);
             if (participants.size() < min) {
                 cancel();
             } else {
-                if (!bus.isRunning()) startBus();
-                // agora sim o onibus parte
-                bus.depart();
-                state = GameState.BUS;
-                plugin.messages().broadcast("match.bus-start");
-                plugin.messages().soundAll("bus-start");
+                boardingSeconds = Math.max(1, plugin.configs().config().getInt("bus.board-seconds", 5));
+                startBus();
+                state = GameState.BOARDING;
             }
         }
+    }
+
+    private void tickBoarding() {
+        boardingSeconds--;
+        for (Participant participant : participants.values()) {
+            Player player = Bukkit.getPlayer(participant.uuid());
+            if (player != null) plugin.messages().actionBar(player,
+                    plugin.messages().raw("match.entries-closed", "%time%", String.valueOf(Math.max(0, boardingSeconds))));
+        }
+        if (boardingSeconds > 0) return;
+        bus.depart();
+        state = GameState.BUS;
+        plugin.messages().broadcast("match.bus-start");
+        plugin.messages().soundAll("bus-start");
     }
 
     /** Mantem os participantes no local configurado durante a fase de entrada. */
@@ -398,7 +415,9 @@ public class Match {
             boolean onlyAfterLanding = plugin.configs().config()
                     .getBoolean("zone.damage-only-after-landing", true);
             int grace = plugin.configs().config().getInt("zone.grace-seconds", 10);
-            boolean damageAllowed = elapsedSeconds > grace && (!onlyAfterLanding || landed);
+            boolean personalGraceDone = participant.landedAtSecond() < 0
+                    || elapsedSeconds - participant.landedAtSecond() > grace;
+            boolean damageAllowed = personalGraceDone && (!onlyAfterLanding || landed);
             zone.applyStorm(player, damageAllowed);
             zone.showRing(player);
         }
@@ -506,6 +525,7 @@ public class Match {
         if (participant == null || participant.landed() || !participant.gliding()) return;
         participant.gliding(false);
         participant.landed(true);
+        participant.landedAtSecond(elapsedSeconds);
         player.setGliding(false);
         player.setFallDistance(0);
         removeTemporaryElytra(player);
@@ -662,6 +682,23 @@ public class Match {
         checkWin();
     }
 
+    public void createDeathChest(Player player, List<ItemStack> drops, Location deathLocation) {
+        if (!plugin.configs().config().getBoolean("death.chest", true) || drops.isEmpty()) return;
+        Location location = deathLocation.getBlock().getType().isAir()
+                ? deathLocation.getBlock().getLocation() : deathLocation.clone().add(0, 1, 0).getBlock().getLocation();
+        Block block = location.getBlock();
+        plugin.regeneration().record(block);
+        block.setType(Material.CHEST, false);
+        if (!(block.getState() instanceof Chest chest)) return;
+        for (ItemStack drop : drops) {
+            if (drop != null && !drop.getType().isAir()) chest.getInventory().addItem(drop.clone());
+        }
+        chest.update(true, false);
+        if (plugin.configs().config().getBoolean("death.chest-glow", true)) {
+            location.getWorld().spawnParticle(Particle.END_ROD, location.clone().add(0.5, 1, 0.5), 35, 0.4, 0.5, 0.4, 0.02);
+        }
+    }
+
     private void offerSpectate(Player player) {
         Component ask = Text.comp(plugin.messages().prefix() + plugin.messages().raw("spectator.ask"));
         Component watch = Text.comp(plugin.messages().raw("spectator.ask-watch"))
@@ -702,8 +739,9 @@ public class Match {
 
     public void checkWin() {
         if (!running()) return;
-        int alive = aliveCount();
-        if (alive > 1) return;
+        long aliveTeams = participants.values().stream().filter(Participant::alive)
+                .map(Participant::team).distinct().count();
+        if (aliveTeams > 1) return;
         Participant last = participants.values().stream().filter(Participant::alive).findFirst().orElse(null);
         end(last);
     }
@@ -732,6 +770,7 @@ public class Match {
                 player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1, 0), 120, 1, 1,
                         1, 0.4);
                 player.getWorld().spawnParticle(Particle.FIREWORK, player.getLocation().add(0, 1, 0), 80, 1, 1, 1, 0.2);
+                launchVictoryFireworks(player);
             }
         } else {
             plugin.messages().broadcast("victory.none");
@@ -745,6 +784,62 @@ public class Match {
                     "%dealt%", String.format("%.1f", participant.damageDealt()),
                     "%taken%", String.format("%.1f", participant.damageTaken()),
                     "%place%", String.valueOf(participant.placement() == 0 ? 1 : participant.placement()));
+        }
+        announceRanking();
+    }
+
+    private void launchVictoryFireworks(Player winnerPlayer) {
+        int count = Math.max(1, plugin.configs().config().getInt("effects.victory-firework-count", 40));
+        for (int i = 0; i < count; i++) {
+            int delay = i * 3;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!winnerPlayer.isOnline()) return;
+                Location location = winnerPlayer.getLocation().clone().add(
+                        java.util.concurrent.ThreadLocalRandom.current().nextDouble(-4, 4), 1,
+                        java.util.concurrent.ThreadLocalRandom.current().nextDouble(-4, 4));
+                Firework firework = location.getWorld().spawn(location, Firework.class);
+                var meta = firework.getFireworkMeta();
+                meta.addEffect(FireworkEffect.builder().withColor(Color.AQUA, Color.YELLOW, Color.RED)
+                        .withFade(Color.WHITE).flicker(true).trail(true).build());
+                meta.setPower(1);
+                firework.setFireworkMeta(meta);
+            }, delay);
+        }
+    }
+
+    private void announceRanking() {
+        List<Participant> ranking = participants.values().stream()
+                .sorted(Comparator.comparingDouble(Participant::score).reversed()).limit(3).toList();
+        if (ranking.isEmpty()) return;
+        plugin.messages().broadcastRaw("&6&lTOP 3 DA PARTIDA");
+        for (int i = 0; i < ranking.size(); i++) {
+            Participant ranked = ranking.get(i);
+            plugin.messages().broadcastRaw("&e#" + (i + 1) + " &f" + ranked.name() + " &7- "
+                    + ranked.kills() + " kills, " + String.format("%.0f", ranked.damageDealt()) + " dano");
+        }
+        plugin.messages().broadcastRaw("&d&lMVP: &f" + ranking.get(0).name());
+    }
+
+    private int teamSize() {
+        String mode = plugin.configs().config().getString("match.mode", "SOLO").toUpperCase();
+        return switch (mode) {
+            case "DUO" -> 2;
+            case "TRIO" -> 3;
+            case "SQUAD" -> 4;
+            default -> 1;
+        };
+    }
+
+    private void assignTeam(Participant participant) {
+        int team = participants.size() / teamSize();
+        participant.team(team);
+        List<java.util.Map<?, ?>> styles = plugin.configs().config().getMapList("teams.styles");
+        if (!styles.isEmpty()) {
+            java.util.Map<?, ?> style = styles.get(team % styles.size());
+            Object color = style.get("color");
+            Object symbol = style.get("symbol");
+            participant.teamStyle(color == null ? "&f" : String.valueOf(color),
+                    symbol == null ? "✦" : String.valueOf(symbol));
         }
     }
 

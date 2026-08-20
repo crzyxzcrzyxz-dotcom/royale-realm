@@ -27,6 +27,7 @@ leave:
 match:
   cancelled: "&cBattle Royale cancelado: jogadores insuficientes."
   starting: "&6🔥 A partida comeca em %time% segundos!"
+  entries-closed: "&eInscricoes encerradas. Embarque em %time% segundos!"
   boarding: "&b🚌 Embarque! Todos a bordo do Battle Bus..."
   boarding-hint: "&7Aguarde... o onibus vai partir!"
   bus-start: "&b🚌 O onibus esta partindo! Agache (SHIFT) para saltar."
@@ -80,6 +81,7 @@ commands:
   map-set: "&aMapa atual definido para &f%map%&a."
   map-unknown: "&cMapa desconhecido: &f%map%"
   setup-saved: "&aValor salvo: &f%what%"
+  map-created: "&aMapa &f%map% &acriado usando o mundo &f%world%&a."
   stopped: "&cPartida encerrada pelo administrador."
 protection:
   build: "&cVoce nao pode modificar o mapa agora."

@@ -16,6 +16,7 @@ public class Participant {
     private boolean spectating;
     private int kills;
     private int placement;
+    private int landedAtSecond = -1;
     private double damageDealt;
     private double damageTaken;
     private int team = -1;
@@ -66,6 +67,14 @@ public class Participant {
 
     public void landed(boolean landed) {
         this.landed = landed;
+    }
+
+    public int landedAtSecond() {
+        return landedAtSecond;
+    }
+
+    public void landedAtSecond(int second) {
+        this.landedAtSecond = second;
     }
 
     public boolean spectating() {
