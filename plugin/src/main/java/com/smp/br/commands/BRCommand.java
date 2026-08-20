@@ -16,13 +16,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.text.Normalizer;
 
 public class BRCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUB = Arrays.asList("ajuda", "entrar", "sair", "assistir", "botoes",
             "help", "join", "leave", "spectate", "start", "stop", "forcestart", "forceend", "reload", "status",
             "map", "setstart", "setbusstart", "setbusend", "setcenter", "setborder", "setzone", "setspawn",
-            "regenerate", "reset", "loot", "debug");
+            "regenerate", "reset", "loot", "debug", "criar", "create");
 
     private final BattleRoyalePlugin plugin;
 
@@ -57,6 +58,7 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             case "regenerate", "reset" -> regenerate(sender);
             case "loot" -> loot(sender);
             case "debug" -> debug(sender);
+            case "criar", "create" -> createMap(sender, args);
             default -> help(sender);
         }
         return true;
@@ -94,6 +96,7 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             plugin.messages().sendRaw(sender, " &f/br setbusstart &7| &f/br setbusend &7- rota do onibus");
             plugin.messages().sendRaw(sender, " &f/br setcenter &7| &f/br setborder <raio>");
             plugin.messages().sendRaw(sender, " &f/br setzone <raio> &7- primeira safe zone na sua posicao");
+            plugin.messages().sendRaw(sender, " &f/br criar <nome> &7- registra o mundo atual como mapa BR");
             plugin.messages().sendRaw(sender, " &f/br reset &8(/br regenerate) &7| &f/br loot &7| &f/br reload &7| &f/br debug");
         }
         plugin.messages().sendRaw(sender, "&8&m                                        ");
@@ -320,8 +323,62 @@ public class BRCommand implements CommandExecutor, TabCompleter {
         section.set("zone.first.x", round(player.getLocation().getX()));
         section.set("zone.first.z", round(player.getLocation().getZ()));
         section.set("zone.first.radius", Math.max(16, radius));
+        section.set("zone.initial.configured", true);
         plugin.configs().saveMaps();
         plugin.messages().send(sender, "commands.setup-saved", "%what%", "zone.first");
+    }
+
+    private void createMap(CommandSender sender, String[] args) {
+        if (!has(sender, "battleroyale.setup")) return;
+        Player player = player(sender);
+        if (player == null) return;
+        if (args.length < 2) {
+            plugin.messages().send(sender, "commands.usage", "%usage%", "/br criar <nome com espacos>");
+            return;
+        }
+        String displayName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        String normalized = Normalizer.normalize(displayName, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+        if (normalized.isEmpty() || plugin.maps().get(normalized) != null) {
+            plugin.messages().sendRaw(sender, "&cNome de mapa invalido ou ja existente.");
+            return;
+        }
+        String root = "maps." + normalized;
+        var maps = plugin.configs().maps();
+        double radius = plugin.configs().config().getDouble("map-creation.default-radius", 400);
+        double height = plugin.configs().config().getDouble("map-creation.default-bus-height", 170);
+        maps.set(root + ".display-name", displayName);
+        maps.set(root + ".world", player.getWorld().getName());
+        maps.set(root + ".enabled", true);
+        maps.set(root + ".start.x", player.getLocation().getX());
+        maps.set(root + ".start.y", player.getLocation().getY());
+        maps.set(root + ".start.z", player.getLocation().getZ());
+        maps.set(root + ".center.x", 0.0);
+        maps.set(root + ".center.z", 0.0);
+        maps.set(root + ".radius", radius);
+        maps.set(root + ".bus.start.x", -radius - 20);
+        maps.set(root + ".bus.start.z", -radius - 20);
+        maps.set(root + ".bus.end.x", radius + 20);
+        maps.set(root + ".bus.end.z", radius + 20);
+        maps.set(root + ".bus.height", height);
+        maps.set(root + ".bus.speed", plugin.configs().config().getDouble("bus.default-speed", 0.85));
+        maps.set(root + ".zone.initial.configured", false);
+        maps.set(root + ".zone.first.x", 0.0);
+        maps.set(root + ".zone.first.z", 0.0);
+        maps.set(root + ".zone.first.radius", radius);
+        maps.set(root + ".zone.final-radius", 8);
+        maps.set(root + ".zone.phases", 6);
+        maps.set(root + ".zone.wait-seconds", List.of(60, 50, 45, 40, 35, 30));
+        maps.set(root + ".zone.shrink-seconds", List.of(60, 50, 45, 40, 35, 30));
+        List<String> order = new ArrayList<>(maps.getStringList("rotation.order"));
+        order.add(normalized);
+        maps.set("rotation.order", order);
+        plugin.configs().saveMaps();
+        plugin.maps().load();
+        plugin.maps().forceMap(normalized);
+        plugin.messages().send(sender, "commands.map-created", "%map%", displayName,
+                "%world%", player.getWorld().getName());
     }
 
     private void regenerate(CommandSender sender) {
