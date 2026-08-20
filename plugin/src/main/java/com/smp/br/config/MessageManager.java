@@ -45,6 +45,11 @@ public class MessageManager {
         Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(component));
     }
 
+    public void broadcastRaw(String message) {
+        Component component = Text.comp(prefix() + message);
+        Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(component));
+    }
+
     public void title(Player player, String titlePath, String subtitlePath, int fadeIn, int stay, int fadeOut,
                       String... placeholders) {
         Title title = Title.title(

@@ -16,6 +16,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Snowball;
+import org.bukkit.block.Block;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -117,14 +119,29 @@ public class SpecialItemManager {
             case "shield-potion" -> {
                 return useShieldPotion(player, item);
             }
+            case "big-shield" -> {
+                return useShield(player, item, "big-shield");
+            }
+            case "chug-jug" -> {
+                return useChugJug(player, item);
+            }
             case "bandage" -> {
                 return useBandage(player, item);
             }
             case "impulse" -> {
-                return useImpulse(player, item);
+                return throwSpecial(player, item, "impulse", 1.8);
             }
             case "smoke-bomb" -> {
                 return throwSmoke(player, item);
+            }
+            case "shockwave", "boogie-bomb", "launch-pad", "port-a-fort" -> {
+                return throwSpecial(player, item, id, 1.65);
+            }
+            case "rift" -> {
+                return useRift(player, item);
+            }
+            case "adrenaline" -> {
+                return useAdrenaline(player, item);
             }
             default -> {
                 return false;
@@ -165,8 +182,9 @@ public class SpecialItemManager {
             player.getWorld().spawnParticle(Particle.CRIT, point, 1, 0, 0, 0, 0);
         }
 
-        Vector pull = target.toVector().subtract(player.getLocation().toVector()).normalize()
-                .multiply(section.getDouble("power", 1.35));
+        double scaledPower = Math.min(section.getDouble("max-power", 3.2),
+                section.getDouble("power", 1.35) + distance / Math.max(20.0, range) * 1.4);
+        Vector pull = target.toVector().subtract(player.getLocation().toVector()).normalize().multiply(scaledPower);
         pull.setY(Math.max(pull.getY(), 0) + section.getDouble("vertical-bonus", 0.35));
         player.setVelocity(pull);
         player.setFallDistance(0);
@@ -253,7 +271,8 @@ public class SpecialItemManager {
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.shield-potion");
         if (section == null) return true;
         if (onCooldown(player, "shield", section.getInt("cooldown-ticks", 40))) return true;
-        addEffect(player, "absorption", section.getInt("absorption-seconds", 90) * 20, 1);
+        addEffect(player, "absorption", section.getInt("absorption-seconds", 90) * 20,
+                section.getInt("absorption-level", 1));
         addEffect(player, "resistance", section.getInt("resistance-seconds", 8) * 20, 1);
         player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(0, 1, 0), 20, 0.4, 0.6, 0.4, 0.02);
         plugin.messages().sound(player, "join");
@@ -265,12 +284,74 @@ public class SpecialItemManager {
     private boolean useBandage(Player player, ItemStack item) {
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.bandage");
         if (section == null) return true;
-        if (onCooldown(player, "bandage", section.getInt("cooldown-ticks", 30))) return true;
+        if (onCooldown(player, "bandage", section.getInt("cooldown-ticks", 0))) return true;
+        heal(player, section.getDouble("instant-heal", 4.0));
         addEffect(player, "regeneration", section.getInt("regen-seconds", 8) * 20, section.getInt("amplifier", 1));
         player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0);
         plugin.messages().sound(player, "join");
         item.setAmount(item.getAmount() - 1);
-        setCooldown(player, "bandage", section.getInt("cooldown-ticks", 30));
+        setCooldown(player, "bandage", section.getInt("cooldown-ticks", 0));
+        return true;
+    }
+
+    private boolean useShield(Player player, ItemStack item, String id) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials." + id);
+        if (section == null) return true;
+        addEffect(player, "absorption", section.getInt("absorption-seconds", 120) * 20,
+                section.getInt("absorption-level", 2));
+        addEffect(player, "resistance", section.getInt("resistance-seconds", 10) * 20, 0);
+        consume(item);
+        return true;
+    }
+
+    private boolean useChugJug(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.chug-jug");
+        if (section == null || channeling.containsKey(player.getUniqueId())) return true;
+        int ticks = section.getInt("channel-ticks", 100);
+        Location origin = player.getLocation().clone();
+        int taskId = new BukkitRunnable() {
+            int elapsed;
+            @Override public void run() {
+                if (!player.isOnline() || player.isDead() || player.getLocation().distanceSquared(origin) > 1.5) {
+                    channeling.remove(player.getUniqueId()); cancel(); return;
+                }
+                elapsed += 5;
+                player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1, 0), 4);
+                if (elapsed < ticks) return;
+                heal(player, 100);
+                addEffect(player, "absorption", section.getInt("absorption-seconds", 240) * 20,
+                        section.getInt("absorption-level", 4));
+                removeOne(player, "chug-jug");
+                channeling.remove(player.getUniqueId()); cancel();
+            }
+        }.runTaskTimer(plugin, 5, 5).getTaskId();
+        channeling.put(player.getUniqueId(), taskId);
+        return true;
+    }
+
+    private boolean useRift(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.rift");
+        player.setVelocity(new Vector(0, section == null ? 2.6 : section.getDouble("height", 2.6), 0));
+        plugin.game().markNoFallDamage(player);
+        consume(item);
+        return true;
+    }
+
+    private boolean useAdrenaline(Player player, ItemStack item) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.adrenaline");
+        int ticks = (section == null ? 20 : section.getInt("seconds", 20)) * 20;
+        addEffect(player, "speed", ticks, 1);
+        addEffect(player, "strength", ticks, 0);
+        addEffect(player, "regeneration", ticks, 0);
+        consume(item);
+        return true;
+    }
+
+    private boolean throwSpecial(Player player, ItemStack item, String id, double speed) {
+        Snowball projectile = player.launchProjectile(Snowball.class);
+        projectile.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
+        projectile.setVelocity(player.getEyeLocation().getDirection().multiply(speed));
+        consume(item);
         return true;
     }
 
@@ -311,7 +392,11 @@ public class SpecialItemManager {
 
     public void onProjectileHit(Projectile projectile) {
         String id = projectile.getPersistentDataContainer().get(Keys.SPECIAL, PersistentDataType.STRING);
-        if (!"smoke-bomb".equals(id)) return;
+        if (id == null) return;
+        if (!"smoke-bomb".equals(id)) {
+            activateThrowable(projectile, id);
+            return;
+        }
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.smoke-bomb");
         double radius = section == null ? 5.0 : section.getDouble("radius", 5.0);
         int blind = section == null ? 5 : section.getInt("blind-seconds", 5);
@@ -323,7 +408,51 @@ public class SpecialItemManager {
             if (!(entity instanceof Player other)) continue;
             if (projectile.getShooter() instanceof Player shooter && shooter.equals(other)) continue;
             addEffect(other, "blindness", blind * 20, 0);
+            addEffect(other, "darkness", blind * 20, 0);
         }
+    }
+
+    private void activateThrowable(Projectile projectile, String id) {
+        ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials." + id);
+        if (section == null) return;
+        Location center = projectile.getLocation();
+        if (id.equals("launch-pad")) {
+            Block base = center.clone().subtract(0, 1, 0).getBlock();
+            int y = base.getY();
+            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+                Block block = base.getWorld().getBlockAt(base.getX() + x, y, base.getZ() + z);
+                plugin.regeneration().record(block);
+                block.setType(Material.SLIME_BLOCK, false);
+            }
+            return;
+        }
+        if (id.equals("port-a-fort")) {
+            int size = section.getInt("size", 2);
+            int height = section.getInt("height", 4);
+            Material material = material(section.getString("block", "STONE_BRICKS"), Material.STONE_BRICKS);
+            for (int y = 0; y < height; y++) for (int x = -size; x <= size; x++) for (int z = -size; z <= size; z++) {
+                if (y > 0 && Math.abs(x) < size && Math.abs(z) < size) continue;
+                Block block = center.getBlock().getRelative(x, y, z);
+                plugin.regeneration().record(block); block.setType(material, false);
+            }
+            return;
+        }
+        double radius = section.getDouble("radius", 7);
+        double power = section.getDouble("power", 2.4);
+        for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (!(entity instanceof LivingEntity living)) continue;
+            if (id.equals("boogie-bomb")) {
+                addEffect(living instanceof Player p ? p : null, "slowness", section.getInt("seconds", 6) * 20, 4);
+                addEffect(living instanceof Player p ? p : null, "jump_boost", section.getInt("seconds", 6) * 20, 2);
+                continue;
+            }
+            Vector push = living.getLocation().toVector().subtract(center.toVector());
+            if (push.lengthSquared() < 0.01) push = new Vector(0, 1, 0);
+            push.normalize().multiply(power).setY(Math.max(0.7, push.getY()));
+            living.setVelocity(push);
+            if (living instanceof Player p) plugin.game().markNoFallDamage(p);
+        }
+        center.getWorld().spawnParticle(Particle.EXPLOSION, center, 2);
     }
 
     /** Launch pad: chamado quando o jogador pisa em um slime block do BR. */
@@ -358,9 +487,20 @@ public class SpecialItemManager {
     }
 
     public void addEffect(Player player, String key, int ticks, int amplifier) {
+        if (player == null) return;
         PotionEffectType type = Registry.EFFECT.get(NamespacedKey.minecraft(key));
         if (type == null) return;
         player.addPotionEffect(new PotionEffect(type, ticks, amplifier, false, true, true));
+    }
+
+    private void heal(Player player, double amount) {
+        var attribute = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
+        double max = attribute == null ? 20 : attribute.getValue();
+        player.setHealth(Math.min(max, player.getHealth() + amount));
+    }
+
+    private void consume(ItemStack item) {
+        item.setAmount(Math.max(0, item.getAmount() - 1));
     }
 
     private boolean onCooldown(Player player, String key, int ticks) {

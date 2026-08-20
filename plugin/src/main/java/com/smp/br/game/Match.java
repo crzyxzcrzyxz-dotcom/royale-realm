@@ -836,8 +836,10 @@ public class Match {
         List<java.util.Map<?, ?>> styles = plugin.configs().config().getMapList("teams.styles");
         if (!styles.isEmpty()) {
             java.util.Map<?, ?> style = styles.get(team % styles.size());
-            participant.teamStyle(String.valueOf(style.getOrDefault("color", "&f")),
-                    String.valueOf(style.getOrDefault("symbol", "✦")));
+            Object color = style.get("color");
+            Object symbol = style.get("symbol");
+            participant.teamStyle(color == null ? "&f" : String.valueOf(color),
+                    symbol == null ? "✦" : String.valueOf(symbol));
         }
     }
 
