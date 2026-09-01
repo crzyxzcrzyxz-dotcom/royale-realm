@@ -4,7 +4,6 @@ import com.smp.br.BattleRoyalePlugin;
 import com.smp.br.util.Keys;
 import com.smp.br.util.Text;
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -62,7 +61,9 @@ public class SpecialItemManager {
             meta.displayName(Text.comp(section.getString("name", id)));
             List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
             for (String line : section.getStringList("lore")) {
-                lore.add(Text.comp(line));
+                lore.add(Text.comp(line
+                        .replace("%regen%", String.valueOf(section.getInt("regen-seconds", 0)))
+                        .replace("%seconds%", String.valueOf(section.getInt("seconds", 0)))));
             }
             meta.lore(lore);
             meta.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id.toLowerCase());
@@ -529,8 +530,4 @@ public class SpecialItemManager {
         return material == null ? fallback : material;
     }
 
-    @SuppressWarnings("unused")
-    private Color unused() {
-        return Color.WHITE;
-    }
 }
