@@ -216,6 +216,10 @@ public class Match {
         Participant participant = new Participant(player.getUniqueId(), player.getName());
         assignTeam(participant);
         participants.put(player.getUniqueId(), participant);
+        if (teamSize() > 1) {
+            player.displayName(Text.comp(participant.teamColor() + participant.teamSymbol() + " " + player.getName()));
+            player.playerListName(Text.comp(participant.teamColor() + participant.teamSymbol() + " " + player.getName()));
+        }
         if (plugin.configs().config().getBoolean("match.teleport-on-join", false)) {
             Location start = map.start();
             if (start != null) player.teleport(start);
@@ -272,6 +276,8 @@ public class Match {
             player.setGliding(false);
             player.setFallDistance(0);
             plugin.playerData().restore(uuid);
+            player.displayName(Component.text(player.getName()));
+            player.playerListName(null);
         }
         if (participant != null && participant.spectating()) {
             participant.spectating(false);

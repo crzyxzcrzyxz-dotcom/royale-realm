@@ -261,12 +261,16 @@ public class RegenerationManager {
         World world = map.world();
         if (world == null) return;
         double radius = map.radius() + 100;
+        boolean clearEntities = plugin.configs().config().getBoolean("regeneration.clear-entities", true);
         for (Entity entity : world.getEntities()) {
             EntityType type = entity.getType();
-            if (type != EntityType.ITEM && type != EntityType.ARROW && type != EntityType.SPECTRAL_ARROW
-                    && type != EntityType.EXPERIENCE_ORB && type != EntityType.SNOWBALL
-                    && type != EntityType.FIREWORK_ROCKET && type != EntityType.SPLASH_POTION
-                    && type != EntityType.TRIDENT) {
+            boolean transientEntity = type == EntityType.ITEM || type == EntityType.ARROW || type == EntityType.SPECTRAL_ARROW
+                    || type == EntityType.EXPERIENCE_ORB || type == EntityType.SNOWBALL
+                    || type == EntityType.FIREWORK_ROCKET || type == EntityType.SPLASH_POTION
+                    || type == EntityType.TRIDENT || type == EntityType.EGG || type == EntityType.ENDER_PEARL
+                    || type == EntityType.FIREBALL || type == EntityType.SMALL_FIREBALL || type == EntityType.TNT;
+            if (!transientEntity && !(clearEntities && entity.getPersistentDataContainer()
+                    .has(com.smp.br.util.Keys.TEMP, org.bukkit.persistence.PersistentDataType.BYTE))) {
                 continue;
             }
             if (distanceXZ(entity.getLocation(), map) > radius) continue;
