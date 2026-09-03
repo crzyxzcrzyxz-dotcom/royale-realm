@@ -17,9 +17,15 @@ import org.bukkit.util.Vector;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Safe Zone + Storm estilo Fortnite: as zonas fecham em locais ALEATORIOS do
- * mapa (sempre em terreno jogavel) e podem fechar por completo.
- * O dano da tempestade e fixo e configuravel.
+ * Safe Zone + Storm.
+ *
+ * IMPORTANTE: a zona e QUADRADA, exatamente igual a WorldBorder do Minecraft.
+ * Isso elimina o bug historico de "tomar dano dentro da zona": antes o dano
+ * usava um circulo e a barreira desenhada era um quadrado.
+ *
+ * A WorldBorder nunca e usada como parede: ela fica sempre no tamanho do mapa
+ * (ou desligada), para que o jogador possa entrar e sair da zona quando quiser.
+ * A zona em si e desenhada com particulas.
  */
 public class ZoneManager {
 
@@ -56,12 +62,15 @@ public class ZoneManager {
 
     public void start() {
         phase = 0;
-        boolean configured = map.section().getBoolean("zone.initial.configured", false);
-        center = configured
-                ? new Vector(map.firstZoneX(), 0, map.firstZoneZ())
-                : new Vector(map.centerX(), 0, map.centerZ());
-        radius = configured ? Math.min(map.firstZoneRadius(), map.radius()) : map.radius();
+        center = new Vector(map.centerX(), 0, map.centerZ());
+        radius = defaultInitialRadius();
+
+        if (map.section().getBoolean("zone.initial.configured", false)) {
+            center = new Vector(map.firstZoneX(), 0, map.firstZoneZ());
+            radius = Math.min(map.firstZoneRadius(), map.radius());
+        }
         if (radius <= 0) radius = map.radius();
+
         initialRadius = radius;
         startCenter = center.clone();
         startRadius = radius;
@@ -72,18 +81,33 @@ public class ZoneManager {
         applyBorder();
     }
 
+    /** Raio inicial da zona: absoluto, ou multiplicador do raio do mapa. */
+    private double defaultInitialRadius() {
+        double absolute = plugin.configs().config().getDouble("zone.initial.radius", -1);
+        double multiplier = Math.max(0.1, plugin.configs().config().getDouble("zone.initial.radius-multiplier", 1.0));
+        double value = absolute > 0 ? absolute : map.radius() * multiplier;
+        return Math.min(value, map.radius());
+    }
+
+    /**
+     * A WorldBorder e apenas moldura do MAPA (nunca da zona) para que o jogador
+     * consiga sair da safe zone a qualquer momento.
+     */
     private void applyBorder() {
-        border.setCenter(center.getX(), center.getZ());
-        border.setSize(Math.max(1.0, radius * 2));
-        border.setWarningDistance(6);
+        if (!plugin.configs().config().getBoolean("zone.worldborder", true)) return;
+        double size = (map.radius() + plugin.configs().config().getDouble("zone.worldborder-margin", 24)) * 2;
+        border.setCenter(map.centerX(), map.centerZ());
+        border.setSize(Math.max(1.0, size));
+        border.setWarningDistance(0);
         border.setWarningTime(0);
-        // a borda e apenas visual: TODO o dano vem do nosso proprio calculo
         border.setDamageAmount(0);
         border.setDamageBuffer(1_000_000);
     }
 
     public void attach(Player player) {
-        player.setWorldBorder(border);
+        if (plugin.configs().config().getBoolean("zone.worldborder", true)) {
+            player.setWorldBorder(border);
+        }
         if (plugin.configs().config().getBoolean("zone.bossbar", true)) {
             player.showBossBar(bossBar);
         }
@@ -122,16 +146,18 @@ public class ZoneManager {
         return new Location(map.world(), center.getX(), map.busHeight(), center.getZ());
     }
 
+    /** Distancia ate a borda QUADRADA da zona (0 = dentro). */
     public double distanceToZone(Location location) {
         World world = map.world();
-        if (world != null && !world.equals(location.getWorld())) return 0;
-        double dx = location.getX() - center.getX();
-        double dz = location.getZ() - center.getZ();
-        return Math.max(0, Math.sqrt(dx * dx + dz * dz) - radius);
+        if (world == null || location.getWorld() == null) return 0;
+        if (!world.equals(location.getWorld())) return 0;
+        double dx = Math.abs(location.getX() - center.getX());
+        double dz = Math.abs(location.getZ() - center.getZ());
+        return Math.max(0, Math.max(dx, dz) - radius);
     }
 
     public double tolerance() {
-        return Math.max(0.5, plugin.configs().config().getDouble("zone.outside-tolerance", 3.0));
+        return Math.max(1.5, plugin.configs().config().getDouble("zone.outside-tolerance", 3.0));
     }
 
     public boolean isOutside(Location location) {
@@ -144,7 +170,7 @@ public class ZoneManager {
     }
 
     // ------------------------------------------------------------------
-    // Proxima zona (aleatoria e em terreno valido)
+    // Proxima zona
     // ------------------------------------------------------------------
 
     private void computeNext() {
@@ -154,6 +180,13 @@ public class ZoneManager {
         int remaining = Math.max(1, phases - phase);
         double step = (radius - finalRadius) / remaining;
         nextRadius = Math.max(finalRadius, radius - step);
+
+        // ultima fase: fecha no destino final configurado
+        if (phase + 1 >= phases) {
+            nextRadius = finalRadius;
+            nextCenter = finalCenter();
+            return;
+        }
 
         boolean random = plugin.configs().config().getBoolean("zone.random-zones", true);
         double free = Math.max(0, radius - nextRadius);
@@ -175,14 +208,24 @@ public class ZoneManager {
         nextCenter = best;
     }
 
+    /** RANDOM = onde a zona ja esta indo | CENTER = centro do mapa | ZERO = coordenada 0,0. */
+    private Vector finalCenter() {
+        String target = plugin.configs().config().getString("zone.final-center", "RANDOM");
+        if ("ZERO".equalsIgnoreCase(target)) return new Vector(0, 0, 0);
+        if ("CENTER".equalsIgnoreCase(target)) return new Vector(map.centerX(), 0, map.centerZ());
+        return center.clone();
+    }
+
     private Vector clampToMap(Vector position, double zoneRadius) {
-        double maxRadius = Math.max(0, map.radius() - zoneRadius);
-        double dx = position.getX() - map.centerX();
-        double dz = position.getZ() - map.centerZ();
-        double distance = Math.sqrt(dx * dx + dz * dz);
-        if (maxRadius <= 0 || distance <= maxRadius) return position;
-        double scale = maxRadius / distance;
-        return new Vector(map.centerX() + dx * scale, 0, map.centerZ() + dz * scale);
+        double maxOffset = Math.max(0, map.radius() - zoneRadius);
+        double x = clamp(position.getX(), map.centerX() - maxOffset, map.centerX() + maxOffset);
+        double z = clamp(position.getZ(), map.centerZ() - maxOffset, map.centerZ() + maxOffset);
+        return new Vector(x, 0, z);
+    }
+
+    private double clamp(double value, double min, double max) {
+        if (min > max) return (min + max) / 2;
+        return Math.max(min, Math.min(max, value));
     }
 
     /** Verifica se ha terreno solido jogavel no centro candidato. */
@@ -227,16 +270,13 @@ public class ZoneManager {
             radius = lerp(startRadius, nextRadius, progress);
             center = new Vector(lerp(startCenter.getX(), nextCenter.getX(), progress), 0,
                     lerp(startCenter.getZ(), nextCenter.getZ(), progress));
-            // a borda visual acompanha EXATAMENTE o calculo interno
-            applyBorder();
 
             if (seconds <= 0) {
                 radius = nextRadius;
                 center = nextCenter.clone();
-                applyBorder();
                 phase++;
                 boolean closeAll = plugin.configs().config().getBoolean("zone.close-completely", true);
-                double limit = closeAll ? 0.5 : map.finalZoneRadius() + 0.01;
+                double limit = closeAll ? 0.05 : map.finalZoneRadius() + 0.01;
                 if (phase >= map.zonePhases() || radius <= limit) {
                     mode = Mode.FINAL;
                     plugin.messages().broadcast("zone.final");
@@ -314,25 +354,40 @@ public class ZoneManager {
         }
     }
 
+    /** Desenha a PAREDE quadrada da zona perto do jogador (mesma geometria do dano). */
     public void showRing(Player player) {
         if (!plugin.configs().config().getBoolean("zone.particles", true)) return;
         if (!plugin.configs().config().getBoolean("effects.zone-ring", true)) return;
         if (map.world() != null && !map.world().equals(player.getWorld())) return;
         if (radius <= 0.5) return;
+
         Location location = player.getLocation();
-        double dx = location.getX() - center.getX();
-        double dz = location.getZ() - center.getZ();
-        double distance = Math.sqrt(dx * dx + dz * dz);
-        if (Math.abs(distance - radius) > 40) return;
-        for (int i = 0; i < 32; i++) {
-            double angle = (Math.PI * 2 / 32) * i;
-            double x = center.getX() + Math.cos(angle) * radius;
-            double z = center.getZ() + Math.sin(angle) * radius;
-            double ddx = x - location.getX();
-            double ddz = z - location.getZ();
-            if (ddx * ddx + ddz * ddz > 1600) continue;
-            Location point = new Location(location.getWorld(), x, location.getY() + 1, z);
-            player.spawnParticle(Particle.END_ROD, point, 1, 0, 1.6, 0, 0);
+        double view = Math.max(8, plugin.configs().config().getDouble("zone.wall-view-distance", 48));
+        double spacing = Math.max(0.5, plugin.configs().config().getDouble("zone.wall-spacing", 2.0));
+        int height = Math.max(1, plugin.configs().config().getInt("zone.wall-height", 5));
+
+        double minX = center.getX() - radius;
+        double maxX = center.getX() + radius;
+        double minZ = center.getZ() - radius;
+        double maxZ = center.getZ() + radius;
+
+        for (double x = minX; x <= maxX; x += spacing) {
+            drawWallPoint(player, location, x, minZ, view, height);
+            drawWallPoint(player, location, x, maxZ, view, height);
+        }
+        for (double z = minZ; z <= maxZ; z += spacing) {
+            drawWallPoint(player, location, minX, z, view, height);
+            drawWallPoint(player, location, maxX, z, view, height);
+        }
+    }
+
+    private void drawWallPoint(Player player, Location from, double x, double z, double view, int height) {
+        double dx = x - from.getX();
+        double dz = z - from.getZ();
+        if (dx * dx + dz * dz > view * view) return;
+        for (int h = 0; h < height; h++) {
+            Location point = new Location(from.getWorld(), x, from.getY() + h * 1.5, z);
+            player.spawnParticle(Particle.END_ROD, point, 1, 0, 0.4, 0, 0);
         }
     }
 
