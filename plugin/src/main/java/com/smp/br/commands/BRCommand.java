@@ -23,7 +23,8 @@ public class BRCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUB = Arrays.asList("ajuda", "entrar", "sair", "assistir", "botoes",
             "help", "join", "leave", "spectate", "start", "stop", "forcestart", "forceend", "reload", "status",
             "map", "setstart", "setbusstart", "setbusend", "setcenter", "setborder", "setzone", "setspawn",
-            "regenerate", "reset", "loot", "debug", "criar", "create");
+            "regenerate", "reset", "loot", "debug", "criar", "create", "deletar", "delete", "canto1", "canto2",
+            "corner1", "corner2");
 
     private final BattleRoyalePlugin plugin;
 
@@ -59,6 +60,9 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             case "loot" -> loot(sender);
             case "debug" -> debug(sender);
             case "criar", "create" -> createMap(sender, args);
+            case "deletar", "delete" -> deleteMap(sender, args);
+            case "canto1", "corner1" -> setCorner(sender, "a");
+            case "canto2", "corner2" -> setCorner(sender, "b");
             default -> help(sender);
         }
         return true;
@@ -97,6 +101,8 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             plugin.messages().sendRaw(sender, " &f/br setcenter &7| &f/br setborder <raio>");
             plugin.messages().sendRaw(sender, " &f/br setzone <raio> &7- primeira safe zone na sua posicao");
             plugin.messages().sendRaw(sender, " &f/br criar <nome> &7- registra o mundo atual como mapa BR");
+            plugin.messages().sendRaw(sender, " &f/br deletar <mapa> confirmar &7- remove o mapa do plugin");
+            plugin.messages().sendRaw(sender, " &f/br canto1 &7| &f/br canto2 &7- define a borda do mapa por 2 pontos");
             plugin.messages().sendRaw(sender, " &f/br reset &8(/br regenerate) &7| &f/br loot &7| &f/br reload &7| &f/br debug");
         }
         plugin.messages().sendRaw(sender, "&8&m                                        ");
@@ -380,6 +386,65 @@ public class BRCommand implements CommandExecutor, TabCompleter {
         plugin.messages().send(sender, "commands.map-created", "%map%", displayName,
                 "%world%", player.getWorld().getName());
     }
+
+    /** Remove um mapa do plugin (nunca apaga o mundo do servidor). */
+    private void deleteMap(CommandSender sender, String[] args) {
+        if (!has(sender, "battleroyale.setup")) return;
+        if (args.length < 2) {
+            plugin.messages().send(sender, "commands.usage", "%usage%", "/br deletar <mapa> confirmar");
+            return;
+        }
+        BRMap map = plugin.maps().get(args[1]);
+        if (map == null) {
+            plugin.messages().send(sender, "commands.map-unknown", "%map%", args[1]);
+            return;
+        }
+        Match match = plugin.matches().current();
+        if (match != null && match.map().id().equalsIgnoreCase(map.id())) {
+            plugin.messages().sendRaw(sender, "&cEste mapa esta em uso pela partida atual. Use &f/br stop &cantes.");
+            return;
+        }
+        if (args.length < 3 || !args[2].equalsIgnoreCase("confirmar")) {
+            plugin.messages().sendRaw(sender, "&eAcao destrutiva. Confirme com: &f/br deletar " + map.id()
+                    + " confirmar");
+            return;
+        }
+        String id = map.id();
+        if (plugin.maps().remove(id)) {
+            plugin.messages().send(sender, "commands.map-deleted", "%map%", id);
+        } else {
+            plugin.messages().send(sender, "commands.map-unknown", "%map%", id);
+        }
+    }
+
+    /** Define um dos dois cantos que delimitam a borda do mapa. */
+    private void setCorner(CommandSender sender, String corner) {
+        if (!has(sender, "battleroyale.setup")) return;
+        Player player = player(sender);
+        if (player == null) return;
+        ConfigurationSection section = targetSection(sender);
+        if (section == null) return;
+        Location location = player.getLocation();
+        section.set("world", location.getWorld().getName());
+        section.set("bounds." + corner + ".x", round(location.getX()));
+        section.set("bounds." + corner + ".z", round(location.getZ()));
+        plugin.configs().saveMaps();
+        plugin.maps().load();
+
+        BRMap map = plugin.maps().current();
+        if (map != null && map.hasBounds()) {
+            plugin.messages().sendRaw(sender, "&aBorda definida: &fX " + (int) map.minX() + " a " + (int) map.maxX()
+                    + " &7| &fZ " + (int) map.minZ() + " a " + (int) map.maxZ()
+                    + " &7| centro &f" + (int) map.centerX() + "," + (int) map.centerZ()
+                    + " &7| raio &f" + (int) map.radius());
+        } else {
+            plugin.messages().sendRaw(sender, "&aCanto &f" + corner
+                    + " &asalvo. Defina o outro canto para concluir a borda.");
+        }
+        plugin.messages().send(sender, "commands.setup-saved", "%what%", "bounds." + corner);
+    }
+
+
 
     private void regenerate(CommandSender sender) {
         if (!has(sender, "battleroyale.admin")) return;

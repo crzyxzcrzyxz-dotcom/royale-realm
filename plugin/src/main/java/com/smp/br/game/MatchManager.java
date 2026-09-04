@@ -140,13 +140,14 @@ public class MatchManager {
         if (current != null) current.markNoFallDamage(player.getUniqueId());
     }
 
+    /** Area jogavel: QUADRADO centrado no mapa (mesma geometria da WorldBorder). */
     public boolean isInsidePlayableArea(Location location) {
         if (current == null) return true;
         BRMap map = current.map();
         if (map.world() == null || !map.world().equals(location.getWorld())) return false;
-        double dx = location.getX() - map.centerX();
-        double dz = location.getZ() - map.centerZ();
-        return Math.sqrt(dx * dx + dz * dz) <= map.radius();
+        double dx = Math.abs(location.getX() - map.centerX());
+        double dz = Math.abs(location.getZ() - map.centerZ());
+        return Math.max(dx, dz) <= map.radius();
     }
 
     /** Recuperacao apos reinicio: devolve os itens de quem estava em partida. */
