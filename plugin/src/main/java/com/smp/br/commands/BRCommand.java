@@ -101,6 +101,8 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             plugin.messages().sendRaw(sender, " &f/br setcenter &7| &f/br setborder <raio>");
             plugin.messages().sendRaw(sender, " &f/br setzone <raio> &7- primeira safe zone na sua posicao");
             plugin.messages().sendRaw(sender, " &f/br criar <nome> &7- registra o mundo atual como mapa BR");
+            plugin.messages().sendRaw(sender, " &f/br deletar <mapa> confirmar &7- remove o mapa do plugin");
+            plugin.messages().sendRaw(sender, " &f/br canto1 &7| &f/br canto2 &7- define a borda do mapa por 2 pontos");
             plugin.messages().sendRaw(sender, " &f/br reset &8(/br regenerate) &7| &f/br loot &7| &f/br reload &7| &f/br debug");
         }
         plugin.messages().sendRaw(sender, "&8&m                                        ");
