@@ -436,25 +436,28 @@ public class Match {
         checkWin();
     }
 
+    /** Limite do MAPA: quadrado, igual a WorldBorder (a safe zone e outra coisa). */
     private void checkMapBounds(Player player, Participant participant) {
+        if (map.world() != null && !map.world().equals(player.getWorld())) return;
         double dx = player.getLocation().getX() - map.centerX();
         double dz = player.getLocation().getZ() - map.centerZ();
-        double distance = Math.sqrt(dx * dx + dz * dz);
+        double distance = Math.max(Math.abs(dx), Math.abs(dz));
+        double radius = map.radius();
         double warn = plugin.configs().config().getDouble("border.warn-distance", 20);
-        if (distance > map.radius() - warn && distance <= map.radius()) {
+        if (distance > radius - warn && distance <= radius) {
             plugin.messages().send(player, "border.warn");
             return;
         }
-        if (distance <= map.radius()) return;
+        if (distance <= radius) return;
         String action = plugin.configs().config().getString("border.action", "TELEPORT");
         if ("ELIMINATE".equalsIgnoreCase(action)) {
             plugin.messages().send(player, "border.eliminated");
             eliminate(player, null);
         } else {
-            double scale = (map.radius() - 5) / distance;
+            double limit = Math.max(1, radius - 5);
             Location target = player.getLocation().clone();
-            target.setX(map.centerX() + dx * scale);
-            target.setZ(map.centerZ() + dz * scale);
+            target.setX(map.centerX() + Math.max(-limit, Math.min(limit, dx)));
+            target.setZ(map.centerZ() + Math.max(-limit, Math.min(limit, dz)));
             target.setY(Math.max(target.getWorld().getHighestBlockYAt(target) + 1, target.getY()));
             player.teleport(target);
             markNoFallDamage(player.getUniqueId());
