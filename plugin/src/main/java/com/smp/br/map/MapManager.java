@@ -42,6 +42,29 @@ public class MapManager {
         return id == null ? null : maps.get(id.toLowerCase());
     }
 
+    /**
+     * Remove o mapa do plugin: apaga a entrada em maps.yml, tira da rotacao e
+     * limpa o mapa forcado. NUNCA apaga a pasta/mundo do servidor.
+     */
+    public boolean remove(String id) {
+        if (id == null) return false;
+        String key = id.toLowerCase();
+        if (!maps.containsKey(key)) return false;
+
+        maps.remove(key);
+        if (key.equals(forcedMap)) forcedMap = null;
+
+        var config = plugin.configs().maps();
+        config.set("maps." + key, null);
+        List<String> order = new ArrayList<>(config.getStringList("rotation.order"));
+        order.removeIf(entry -> entry != null && entry.equalsIgnoreCase(key));
+        config.set("rotation.order", order);
+        config.set("rotation.current", 0);
+        plugin.configs().saveMaps();
+        load();
+        return true;
+    }
+
     public List<String> rotationOrder() {
         List<String> order = new ArrayList<>(plugin.configs().maps().getStringList("rotation.order"));
         order.removeIf(id -> get(id) == null || !get(id).isReady());

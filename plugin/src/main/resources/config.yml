@@ -109,13 +109,25 @@ zone:
   outside-tolerance: 3.0
   # a zona fecha totalmente (raio 0) no fim
   close-completely: true
+  # RANDOM = onde a zona estiver indo | CENTER = centro do mapa | ZERO = coordenada 0,0
+  final-center: RANDOM
   # zonas aleatorias no mapa (estilo Fortnite)
   random-zones: true
   # so escolhe centros onde existe terreno solido
   terrain-check: true
   terrain-tries: 40
-  # Por padrao a primeira borda cobre todo o raio do mapa. /br setzone sobrescreve isso.
-  initial-use-map-settings: false
+  # tamanho da PRIMEIRA zona. radius <= 0 usa o raio do mapa x multiplicador
+  initial:
+    radius: -1
+    radius-multiplier: 1.0
+  # A WorldBorder e apenas moldura do MAPA (nunca da zona): assim da para entrar
+  # e sair da safe zone quando quiser, tomando dano fora dela.
+  worldborder: true
+  worldborder-margin: 24
+  # parede de particulas que mostra a zona (mesma geometria quadrada do dano)
+  wall-view-distance: 48
+  wall-spacing: 2.0
+  wall-height: 5
 
 death:
   # ao morrer, os itens ficam num bau no local da morte

@@ -58,11 +58,34 @@ public class BRMap {
                 (float) section.getDouble("start.pitch", 0));
     }
 
+    /** true quando a borda do mapa foi definida por dois cantos (/br canto1 e /br canto2). */
+    public boolean hasBounds() {
+        return section.isSet("bounds.a.x") && section.isSet("bounds.b.x");
+    }
+
+    public double minX() {
+        return Math.min(section.getDouble("bounds.a.x", 0), section.getDouble("bounds.b.x", 0));
+    }
+
+    public double maxX() {
+        return Math.max(section.getDouble("bounds.a.x", 0), section.getDouble("bounds.b.x", 0));
+    }
+
+    public double minZ() {
+        return Math.min(section.getDouble("bounds.a.z", 0), section.getDouble("bounds.b.z", 0));
+    }
+
+    public double maxZ() {
+        return Math.max(section.getDouble("bounds.a.z", 0), section.getDouble("bounds.b.z", 0));
+    }
+
     public double centerX() {
+        if (hasBounds()) return (minX() + maxX()) / 2.0;
         return section.getDouble("center.x", 0);
     }
 
     public double centerZ() {
+        if (hasBounds()) return (minZ() + maxZ()) / 2.0;
         return section.getDouble("center.z", 0);
     }
 
@@ -73,7 +96,11 @@ public class BRMap {
                 centerZ());
     }
 
+    /** Meia-aresta do mapa (a area jogavel e um QUADRADO, igual a WorldBorder). */
     public double radius() {
+        if (hasBounds()) {
+            return Math.max(8, Math.max((maxX() - minX()) / 2.0, (maxZ() - minZ()) / 2.0));
+        }
         return section.getDouble("radius", 400);
     }
 
