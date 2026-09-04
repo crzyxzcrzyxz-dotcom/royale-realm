@@ -691,21 +691,76 @@ public class Match {
         checkWin();
     }
 
+    /**
+     * Cria o bau de morte. Os itens vem dos drops do evento E do inventario do
+     * jogador (quando keepInventory esta ligado no mundo, os drops chegam vazios
+     * - era exatamente por isso que o bau aparecia sem nada).
+     */
     public void createDeathChest(Player player, List<ItemStack> drops, Location deathLocation) {
-        if (!plugin.configs().config().getBoolean("death.chest", true) || drops.isEmpty()) return;
-        Location location = deathLocation.getBlock().getType().isAir()
-                ? deathLocation.getBlock().getLocation() : deathLocation.clone().add(0, 1, 0).getBlock().getLocation();
+        if (!plugin.configs().config().getBoolean("death.chest", true)) return;
+
+        List<ItemStack> items = new ArrayList<>();
+        Set<Integer> seen = new HashSet<>();
+        if (drops != null) {
+            for (ItemStack drop : drops) {
+                if (drop == null || drop.getType().isAir()) continue;
+                items.add(drop.clone());
+                seen.add(System.identityHashCode(drop));
+            }
+        }
+        for (ItemStack content : player.getInventory().getContents()) {
+            if (content == null || content.getType().isAir()) continue;
+            if (seen.contains(System.identityHashCode(content))) continue;
+            if (content.getType() == Material.ELYTRA && isTemporary(content)) continue;
+            items.add(content.clone());
+        }
+        ItemStack offhand = player.getInventory().getItemInOffHand();
+        if (offhand != null && !offhand.getType().isAir() && !seen.contains(System.identityHashCode(offhand))) {
+            items.add(offhand.clone());
+        }
+        if (items.isEmpty()) return;
+
+        Location location = safeChestLocation(deathLocation);
+        if (location == null) return;
         Block block = location.getBlock();
         plugin.regeneration().record(block);
         block.setType(Material.CHEST, false);
-        if (!(block.getState() instanceof Chest chest)) return;
-        for (ItemStack drop : drops) {
-            if (drop != null && !drop.getType().isAir()) chest.getInventory().addItem(drop.clone());
+
+        // usa o estado AO VIVO: um snapshot nao persiste o inventario de forma confiavel
+        Chest chest = liveChest(block);
+        if (chest == null) return;
+        for (ItemStack item : items) {
+            chest.getInventory().addItem(item);
         }
         chest.update(true, false);
+        plugin.getLogger().info("Bau de morte de " + player.getName() + " com " + items.size() + " item(ns) em "
+                + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
         if (plugin.configs().config().getBoolean("death.chest-glow", true)) {
             location.getWorld().spawnParticle(Particle.END_ROD, location.clone().add(0.5, 1, 0.5), 35, 0.4, 0.5, 0.4, 0.02);
         }
+    }
+
+    private Chest liveChest(Block block) {
+        try {
+            if (block.getState(false) instanceof Chest live) return live;
+        } catch (Throwable ignored) {
+            // API antiga: cai no snapshot
+        }
+        return block.getState() instanceof Chest chest ? chest : null;
+    }
+
+    /** Procura um bloco livre a partir do local da morte (evita perder o bau). */
+    private Location safeChestLocation(Location deathLocation) {
+        if (deathLocation == null || deathLocation.getWorld() == null) return null;
+        Location base = deathLocation.getBlock().getLocation();
+        for (int up = 0; up <= 3; up++) {
+            Location candidate = base.clone().add(0, up, 0);
+            Material type = candidate.getBlock().getType();
+            if (type.isAir() || type == Material.WATER || type == Material.SNOW || type == Material.SHORT_GRASS) {
+                return candidate;
+            }
+        }
+        return base.clone().add(0, 1, 0);
     }
 
     private void offerSpectate(Player player) {
