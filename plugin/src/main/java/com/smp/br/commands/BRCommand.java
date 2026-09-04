@@ -23,7 +23,8 @@ public class BRCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUB = Arrays.asList("ajuda", "entrar", "sair", "assistir", "botoes",
             "help", "join", "leave", "spectate", "start", "stop", "forcestart", "forceend", "reload", "status",
             "map", "setstart", "setbusstart", "setbusend", "setcenter", "setborder", "setzone", "setspawn",
-            "regenerate", "reset", "loot", "debug", "criar", "create");
+            "regenerate", "reset", "loot", "debug", "criar", "create", "deletar", "delete", "canto1", "canto2",
+            "corner1", "corner2");
 
     private final BattleRoyalePlugin plugin;
 
@@ -59,6 +60,9 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             case "loot" -> loot(sender);
             case "debug" -> debug(sender);
             case "criar", "create" -> createMap(sender, args);
+            case "deletar", "delete" -> deleteMap(sender, args);
+            case "canto1", "corner1" -> setCorner(sender, "a");
+            case "canto2", "corner2" -> setCorner(sender, "b");
             default -> help(sender);
         }
         return true;
