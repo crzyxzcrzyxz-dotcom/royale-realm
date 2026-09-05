@@ -174,9 +174,9 @@ public class LootManager {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             for (String enchantEntry : entry.enchants()) {
-                applyEnchant(meta, enchantEntry, rarity);
+                applyEnchant(item, meta, enchantEntry);
             }
-            applyRarityBonus(meta, material, rarity);
+            applyRarityBonus(item, meta, material, rarity);
             if (entry.potion() != null && meta instanceof PotionMeta potionMeta) {
                 try {
                     potionMeta.setBasePotionType(PotionType.valueOf(entry.potion().toUpperCase()));
@@ -190,25 +190,45 @@ public class LootManager {
         return item;
     }
 
-    private void applyEnchant(ItemMeta meta, String raw, Rarity rarity) {
+    /**
+     * Aplica um encantamento SOMENTE se ele for valido para o item:
+     * - o item precisa aceitar o encantamento (canEnchantItem)
+     * - nao pode conflitar com um encantamento ja presente
+     * - o nivel e limitado ao maximo vanilla
+     */
+    private void applyEnchant(ItemStack item, ItemMeta meta, String raw) {
+        if (raw == null || raw.isBlank()) return;
         String[] parts = raw.split(":");
         if (parts.length == 0) return;
         Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(parts[0].toLowerCase()));
-        if (enchantment == null) return;
+        if (enchantment == null) {
+            plugin.getLogger().warning("Encantamento invalido no loot.yml: " + raw);
+            return;
+        }
+        boolean book = meta instanceof EnchantmentStorageMeta;
+        if (!book && !enchantment.canEnchantItem(item)) return;
+
+        for (Enchantment present : meta.getEnchants().keySet()) {
+            if (!present.equals(enchantment) && present.conflictsWith(enchantment)) return;
+        }
+
         int level = 1;
         if (parts.length > 1) {
             try {
-                level = Integer.parseInt(parts[1]);
+                level = Integer.parseInt(parts[1].trim());
             } catch (NumberFormatException ignored) {
                 level = 1;
             }
         }
-        // nunca ultrapassa o limite vanilla
         level = Math.max(1, Math.min(level, enchantment.getMaxLevel()));
-        meta.addEnchant(enchantment, level, false);
+        if (book) {
+            ((EnchantmentStorageMeta) meta).addStoredEnchant(enchantment, level, false);
+        } else {
+            meta.addEnchant(enchantment, level, false);
+        }
     }
 
-    private void applyRarityBonus(ItemMeta meta, Material material, Rarity rarity) {
+    private void applyRarityBonus(ItemStack item, ItemMeta meta, Material material, Rarity rarity) {
         ConfigurationSection bonus = plugin.configs().loot().getConfigurationSection("bonus." + rarity.name());
         if (bonus == null || rarity == Rarity.COMMON) return;
         String name = material.name();
@@ -226,12 +246,12 @@ public class LootManager {
             level = bonus.getInt("bow", 0);
             enchant = "power";
         } else if (material == Material.CROSSBOW) {
-            level = Math.min(3, bonus.getInt("bow", 0));
+            level = bonus.getInt("bow", 0);
             enchant = "quick_charge";
         }
-        if (enchant != null && level > 0) applyEnchant(meta, enchant + ":" + level, rarity);
+        if (enchant != null && level > 0) applyEnchant(item, meta, enchant + ":" + level);
         if (unbreaking > 0 && meta instanceof Damageable) {
-            applyEnchant(meta, "unbreaking:" + unbreaking, rarity);
+            applyEnchant(item, meta, "unbreaking:" + unbreaking);
         }
     }
 
