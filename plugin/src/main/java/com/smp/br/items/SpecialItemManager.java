@@ -138,6 +138,10 @@ public class SpecialItemManager {
             case "shockwave", "boogie-bomb", "launch-pad", "port-a-fort" -> {
                 return throwSpecial(player, item, id, 1.65);
             }
+            // Todos arremessaveis: ativam no impacto, sem precisar mirar num bloco.
+            case "fireball", "freeze-grenade", "lightning-grenade", "healing-grenade", "cluster-bomb" -> {
+                return throwSpecial(player, item, id, 1.9);
+            }
             case "rift" -> {
                 return useRift(player, item);
             }
