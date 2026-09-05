@@ -221,6 +221,13 @@ public class RegenerationManager {
     // ------------------------------------------------------------------
 
     /** Desfaz todas as alteracoes em lotes, sem travar o servidor. */
+    /**
+     * Restauracao em DUAS passagens:
+     * 1) limpa (de cima para baixo) tudo que foi alterado - remove agua, fogo,
+     *    blocos colocados e restos que impediam o mapa de voltar ao original;
+     * 2) reaplica (de baixo para cima) o estado original de cada bloco.
+     * Sem a primeira passagem, blocos apoiados/liquidos sobreviviam ao reset.
+     */
     public void restore(BRMap map, Runnable done) {
         tracking = false;
         restoring = true;
@@ -228,27 +235,52 @@ public class RegenerationManager {
         restoreContainers(map);
 
         int perTick = Math.max(50, plugin.configs().config().getInt("regeneration.blocks-per-tick", 400));
-        Deque<BlockState> queue = new ArrayDeque<>(changed.values());
+        List<BlockState> states = new ArrayList<>(changed.values());
         changed.clear();
+        states.removeIf(java.util.Objects::isNull);
+
+        List<BlockState> clearOrder = new ArrayList<>(states);
+        clearOrder.sort((a, b) -> Integer.compare(b.getY(), a.getY()));
+        List<BlockState> placeOrder = new ArrayList<>(states);
+        placeOrder.sort(java.util.Comparator.comparingInt(BlockState::getY));
+
+        Deque<BlockState> clearQueue = new ArrayDeque<>(clearOrder);
+        Deque<BlockState> placeQueue = new ArrayDeque<>(placeOrder);
+        int total = states.size();
 
         new BukkitRunnable() {
             @Override
             public void run() {
                 int processed = 0;
-                while (!queue.isEmpty() && processed < perTick) {
-                    BlockState state = queue.pollLast();
+                while (!clearQueue.isEmpty() && processed < perTick) {
+                    BlockState state = clearQueue.pollFirst();
                     processed++;
-                    if (state == null) continue;
                     try {
-                        state.update(true, false);
+                        Block block = state.getBlock();
+                        if (!block.getChunk().isLoaded()) block.getChunk().load();
+                        if (block.getType() != state.getType()) {
+                            block.setType(Material.AIR, false);
+                        }
                     } catch (Exception ignored) {
-                        // bloco em chunk descarregado ou estado invalido
+                        // chunk indisponivel: a segunda passagem tenta de novo
                     }
                 }
-                if (queue.isEmpty()) {
+                while (clearQueue.isEmpty() && !placeQueue.isEmpty() && processed < perTick) {
+                    BlockState state = placeQueue.pollFirst();
+                    processed++;
+                    try {
+                        if (!state.getBlock().getChunk().isLoaded()) state.getBlock().getChunk().load();
+                        state.update(true, false);
+                    } catch (Exception ignored) {
+                        // estado invalido
+                    }
+                }
+                if (clearQueue.isEmpty() && placeQueue.isEmpty()) {
                     restoreContainers(map);
+                    clearGroundItems(map);
                     restoring = false;
                     cancel();
+                    plugin.getLogger().info("Mapa restaurado: " + total + " bloco(s) revertido(s).");
                     if (done != null) done.run();
                 }
             }
