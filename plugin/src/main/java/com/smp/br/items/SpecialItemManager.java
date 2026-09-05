@@ -158,17 +158,19 @@ public class SpecialItemManager {
             plugin.messages().sound(player, "error");
             return true;
         }
-        double range = section.getInt("range", 28);
-        RayTraceResult result = player.getWorld().rayTraceBlocks(player.getEyeLocation(),
-                player.getEyeLocation().getDirection(), range, FluidCollisionMode.NEVER, true);
-        if (result == null || result.getHitBlock() == null) {
-            plugin.messages().send(player, "special.grappler-no-target");
-            plugin.messages().sound(player, "error");
-            return true;
-        }
-        Location target = result.getHitPosition().toLocation(player.getWorld());
+        double range = section.getDouble("range", 64);
+        Location eye = player.getEyeLocation();
+        Vector direction = eye.getDirection();
+        RayTraceResult result = player.getWorld().rayTraceBlocks(eye, direction, range,
+                FluidCollisionMode.NEVER, true);
+        // Sem bloco na mira NAO e erro: usa o fim do alcance configurado.
+        // (era isto que limitava o gancho ao alcance de interacao vanilla)
+        Location target = (result != null && result.getHitBlock() != null)
+                ? result.getHitPosition().toLocation(player.getWorld())
+                : eye.clone().add(direction.clone().multiply(range));
         if (!plugin.matches().isInsidePlayableArea(target)) {
             plugin.messages().send(player, "special.grappler-no-target");
+            plugin.messages().sound(player, "error");
             return true;
         }
         // linha visual
