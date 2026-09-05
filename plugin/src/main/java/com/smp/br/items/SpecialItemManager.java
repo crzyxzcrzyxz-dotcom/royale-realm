@@ -138,6 +138,10 @@ public class SpecialItemManager {
             case "shockwave", "boogie-bomb", "launch-pad", "port-a-fort" -> {
                 return throwSpecial(player, item, id, 1.65);
             }
+            // Todos arremessaveis: ativam no impacto, sem precisar mirar num bloco.
+            case "fireball", "freeze-grenade", "lightning-grenade", "healing-grenade", "cluster-bomb" -> {
+                return throwSpecial(player, item, id, 1.9);
+            }
             case "rift" -> {
                 return useRift(player, item);
             }
@@ -158,21 +162,22 @@ public class SpecialItemManager {
             plugin.messages().sound(player, "error");
             return true;
         }
-        double range = section.getInt("range", 28);
-        RayTraceResult result = player.getWorld().rayTraceBlocks(player.getEyeLocation(),
-                player.getEyeLocation().getDirection(), range, FluidCollisionMode.NEVER, true);
-        if (result == null || result.getHitBlock() == null) {
+        double range = section.getDouble("range", 64);
+        Location eye = player.getEyeLocation();
+        Vector direction = eye.getDirection();
+        RayTraceResult result = player.getWorld().rayTraceBlocks(eye, direction, range,
+                FluidCollisionMode.NEVER, true);
+        // Sem bloco na mira NAO e erro: usa o fim do alcance configurado.
+        // (era isto que limitava o gancho ao alcance de interacao vanilla)
+        Location target = (result != null && result.getHitBlock() != null)
+                ? result.getHitPosition().toLocation(player.getWorld())
+                : eye.clone().add(direction.clone().multiply(range));
+        if (!plugin.matches().isInsidePlayableArea(target)) {
             plugin.messages().send(player, "special.grappler-no-target");
             plugin.messages().sound(player, "error");
             return true;
         }
-        Location target = result.getHitPosition().toLocation(player.getWorld());
-        if (!plugin.matches().isInsidePlayableArea(target)) {
-            plugin.messages().send(player, "special.grappler-no-target");
-            return true;
-        }
         // linha visual
-        Location eye = player.getEyeLocation();
         Vector step = target.toVector().subtract(eye.toVector());
         double distance = step.length();
         if (distance < 0.5) return true;
@@ -438,6 +443,48 @@ public class SpecialItemManager {
             }
             return;
         }
+        if (id.equals("fireball") || id.equals("cluster-bomb")) {
+            explosive(projectile, section, id);
+            return;
+        }
+        if (id.equals("lightning-grenade")) {
+            center.getWorld().strikeLightningEffect(center);
+            double r = section.getDouble("radius", 5);
+            double damage = section.getDouble("damage", 6.0);
+            for (Entity entity : center.getWorld().getNearbyEntities(center, r, r, r)) {
+                if (entity instanceof LivingEntity living && !living.equals(projectile.getShooter())) {
+                    living.damage(damage, shooterOf(projectile));
+                }
+            }
+            return;
+        }
+        if (id.equals("freeze-grenade")) {
+            double r = section.getDouble("radius", 6);
+            int seconds = section.getInt("seconds", 6);
+            center.getWorld().spawnParticle(Particle.SNOWFLAKE, center, 120, r / 2, 1.2, r / 2, 0.02);
+            center.getWorld().playSound(center, "block.glass.break", 1f, 1.4f);
+            for (Entity entity : center.getWorld().getNearbyEntities(center, r, r, r)) {
+                if (!(entity instanceof LivingEntity living)) continue;
+                if (living.equals(projectile.getShooter())) continue;
+                living.setFreezeTicks(seconds * 20);
+                addEffect(living instanceof Player p ? p : null, "slowness", seconds * 20, 3);
+                addEffect(living instanceof Player p ? p : null, "mining_fatigue", seconds * 20, 2);
+            }
+            return;
+        }
+        if (id.equals("healing-grenade")) {
+            double r = section.getDouble("radius", 6);
+            int seconds = section.getInt("seconds", 6);
+            center.getWorld().spawnParticle(Particle.HEART, center, 40, r / 2, 1.2, r / 2, 0.02);
+            center.getWorld().playSound(center, "entity.player.levelup", 1f, 1.6f);
+            for (Entity entity : center.getWorld().getNearbyEntities(center, r, r, r)) {
+                if (entity instanceof Player p) {
+                    addEffect(p, "regeneration", seconds * 20, 1);
+                    addEffect(p, "absorption", seconds * 20 * 2, 1);
+                }
+            }
+            return;
+        }
         double radius = section.getDouble("radius", 7);
         double power = section.getDouble("power", 2.4);
         for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
@@ -454,6 +501,29 @@ public class SpecialItemManager {
             if (living instanceof Player p) plugin.game().markNoFallDamage(p);
         }
         center.getWorld().spawnParticle(Particle.EXPLOSION, center, 2);
+    }
+
+    /** Explosao SEM quebrar blocos: o mapa nao pode ficar destruido pelo item. */
+    private void explosive(Projectile projectile, ConfigurationSection section, String id) {
+        Location center = projectile.getLocation();
+        double radius = section.getDouble("radius", 5);
+        double damage = section.getDouble("damage", 8.0);
+        boolean fire = section.getBoolean("fire", "fireball".equals(id));
+        center.getWorld().createExplosion(center, (float) section.getDouble("power", 2.0), false, false,
+                projectile);
+        center.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, center, 1);
+        center.getWorld().playSound(center, "entity.generic.explode", 1.4f, 1f);
+        for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (!(entity instanceof LivingEntity living)) continue;
+            double distance = living.getLocation().distance(center);
+            double scaled = damage * Math.max(0.2, 1 - (distance / Math.max(1, radius)));
+            living.damage(scaled, shooterOf(projectile));
+            if (fire) living.setFireTicks(section.getInt("fire-ticks", 60));
+        }
+    }
+
+    private Player shooterOf(Projectile projectile) {
+        return projectile.getShooter() instanceof Player shooter ? shooter : null;
     }
 
     /** Launch pad: chamado quando o jogador pisa em um slime block do BR. */

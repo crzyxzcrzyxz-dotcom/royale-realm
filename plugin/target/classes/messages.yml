@@ -82,6 +82,7 @@ commands:
   map-unknown: "&cMapa desconhecido: &f%map%"
   setup-saved: "&aValor salvo: &f%what%"
   map-created: "&aMapa &f%map% &acriado usando o mundo &f%world%&a."
+  map-deleted: "&aMapa &f%map% &aremovido do plugin (o mundo continua intacto)."
   stopped: "&cPartida encerrada pelo administrador."
 protection:
   build: "&cVoce nao pode modificar o mapa agora."

@@ -92,6 +92,8 @@ tables:
     - {material: SPECIAL:impulse, min: 1, max: 2, weight: 8}
     - {material: SPECIAL:big-shield, min: 1, max: 1, weight: 8}
     - {material: SPECIAL:adrenaline, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:freeze-grenade, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:healing-grenade, min: 1, max: 2, weight: 8}
     - {material: TIPPED_ARROW, min: 8, max: 16, weight: 7, potion: SLOWNESS}
     - {material: GOLDEN_APPLE, min: 2, max: 3, weight: 8}
   LEGENDARY:
@@ -106,6 +108,7 @@ tables:
     - {material: SPECIAL:shockwave, min: 1, max: 2, weight: 8}
     - {material: SPECIAL:port-a-fort, min: 1, max: 1, weight: 7}
     - {material: SPECIAL:rift, min: 1, max: 2, weight: 7}
+    - {material: SPECIAL:fireball, min: 1, max: 2, weight: 8}
   MYTHIC:
     - {material: NETHERITE_SWORD, min: 1, max: 1, weight: 10, enchants: ["fire_aspect:2", "knockback:2"]}
     - {material: NETHERITE_AXE, min: 1, max: 1, weight: 7}
@@ -117,3 +120,5 @@ tables:
     - {material: ENCHANTED_GOLDEN_APPLE, min: 2, max: 3, weight: 7}
     - {material: SPECIAL:chug-jug, min: 1, max: 2, weight: 8}
     - {material: SPECIAL:boogie-bomb, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:lightning-grenade, min: 1, max: 2, weight: 7}
+    - {material: SPECIAL:cluster-bomb, min: 1, max: 2, weight: 7}

@@ -13,10 +13,20 @@ import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.block.Block;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockFormEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockIgniteEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
+import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
@@ -365,6 +375,65 @@ public class GameListener implements Listener {
     public void onBurn(BlockBurnEvent event) {
         plugin.regeneration().record(event.getBlock());
     }
+
+    // ---- alteracoes INDIRETAS: sem isto o mapa nunca volta 100% ao original ----
+
+    /** Agua/lava correndo. */
+    @EventHandler(ignoreCancelled = true)
+    public void onFlow(BlockFromToEvent event) {
+        plugin.regeneration().record(event.getToBlock());
+    }
+
+    /** Fogo apagando, gelo derretendo, folha sumindo. */
+    @EventHandler(ignoreCancelled = true)
+    public void onFade(BlockFadeEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    /** Neve/gelo/obsidiana se formando. */
+    @EventHandler(ignoreCancelled = true)
+    public void onForm(BlockFormEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onSpread(BlockSpreadEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onIgnite(BlockIgniteEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onLeavesDecay(LeavesDecayEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    /** Areia caindo, enderman, barcos, ovelha comendo grama... */
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        plugin.regeneration().recordAll(event.getBlocks());
+        for (Block block : event.getBlocks()) {
+            plugin.regeneration().record(block.getRelative(event.getDirection()));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        plugin.regeneration().recordAll(event.getBlocks());
+        for (Block block : event.getBlocks()) {
+            plugin.regeneration().record(block.getRelative(event.getDirection()));
+        }
+    }
+
+
 
     private boolean isProtectedWorld(Player player) {
         Match match = match();
