@@ -178,7 +178,6 @@ public class SpecialItemManager {
             return true;
         }
         // linha visual
-        Location eye = player.getEyeLocation();
         Vector step = target.toVector().subtract(eye.toVector());
         double distance = step.length();
         if (distance < 0.5) return true;
