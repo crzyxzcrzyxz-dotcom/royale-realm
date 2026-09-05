@@ -444,6 +444,48 @@ public class SpecialItemManager {
             }
             return;
         }
+        if (id.equals("fireball") || id.equals("cluster-bomb")) {
+            explosive(projectile, section, id);
+            return;
+        }
+        if (id.equals("lightning-grenade")) {
+            center.getWorld().strikeLightningEffect(center);
+            double r = section.getDouble("radius", 5);
+            double damage = section.getDouble("damage", 6.0);
+            for (Entity entity : center.getWorld().getNearbyEntities(center, r, r, r)) {
+                if (entity instanceof LivingEntity living && !living.equals(projectile.getShooter())) {
+                    living.damage(damage, shooterOf(projectile));
+                }
+            }
+            return;
+        }
+        if (id.equals("freeze-grenade")) {
+            double r = section.getDouble("radius", 6);
+            int seconds = section.getInt("seconds", 6);
+            center.getWorld().spawnParticle(Particle.SNOWFLAKE, center, 120, r / 2, 1.2, r / 2, 0.02);
+            center.getWorld().playSound(center, "block.glass.break", 1f, 1.4f);
+            for (Entity entity : center.getWorld().getNearbyEntities(center, r, r, r)) {
+                if (!(entity instanceof LivingEntity living)) continue;
+                if (living.equals(projectile.getShooter())) continue;
+                living.setFreezeTicks(seconds * 20);
+                addEffect(living instanceof Player p ? p : null, "slowness", seconds * 20, 3);
+                addEffect(living instanceof Player p ? p : null, "mining_fatigue", seconds * 20, 2);
+            }
+            return;
+        }
+        if (id.equals("healing-grenade")) {
+            double r = section.getDouble("radius", 6);
+            int seconds = section.getInt("seconds", 6);
+            center.getWorld().spawnParticle(Particle.HEART, center, 40, r / 2, 1.2, r / 2, 0.02);
+            center.getWorld().playSound(center, "entity.player.levelup", 1f, 1.6f);
+            for (Entity entity : center.getWorld().getNearbyEntities(center, r, r, r)) {
+                if (entity instanceof Player p) {
+                    addEffect(p, "regeneration", seconds * 20, 1);
+                    addEffect(p, "absorption", seconds * 20 * 2, 1);
+                }
+            }
+            return;
+        }
         double radius = section.getDouble("radius", 7);
         double power = section.getDouble("power", 2.4);
         for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
