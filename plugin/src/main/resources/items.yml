@@ -118,3 +118,46 @@ specials:
     size: 2
     height: 4
     block: STONE_BRICKS
+  # --- arremessaveis: ativam no impacto, sem precisar mirar num bloco ---
+  fireball:
+    enabled: true
+    material: BLAZE_POWDER
+    name: "&6&lBOLA DE FOGO"
+    lore:
+      - "&7Arremesse: explode e incendeia."
+      - "&7Nao destroi o mapa."
+    radius: 5.0
+    power: 2.0
+    damage: 9.0
+    fire: true
+    fire-ticks: 80
+  cluster-bomb:
+    enabled: true
+    material: TNT
+    name: "&c&lCLUSTER BOMB"
+    lore: ["&7Arremesse: explosao forte sem quebrar blocos."]
+    radius: 6.0
+    power: 2.6
+    damage: 11.0
+    fire: false
+  freeze-grenade:
+    enabled: true
+    material: BLUE_ICE
+    name: "&b&lGRANADA CONGELANTE"
+    lore: ["&7Arremesse: congela e desacelera inimigos."]
+    radius: 6.0
+    seconds: 6
+  lightning-grenade:
+    enabled: true
+    material: LIGHTNING_ROD
+    name: "&e&lGRANADA RELAMPAGO"
+    lore: ["&7Arremesse: raio e dano em area."]
+    radius: 5.0
+    damage: 7.0
+  healing-grenade:
+    enabled: true
+    material: GLISTERING_MELON_SLICE
+    name: "&a&lGRANADA DE CURA"
+    lore: ["&7Arremesse: cura aliados na area."]
+    radius: 6.0
+    seconds: 8
