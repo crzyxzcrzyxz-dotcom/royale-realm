@@ -366,6 +366,65 @@ public class GameListener implements Listener {
         plugin.regeneration().record(event.getBlock());
     }
 
+    // ---- alteracoes INDIRETAS: sem isto o mapa nunca volta 100% ao original ----
+
+    /** Agua/lava correndo. */
+    @EventHandler(ignoreCancelled = true)
+    public void onFlow(BlockFromToEvent event) {
+        plugin.regeneration().record(event.getToBlock());
+    }
+
+    /** Fogo apagando, gelo derretendo, folha sumindo. */
+    @EventHandler(ignoreCancelled = true)
+    public void onFade(BlockFadeEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    /** Neve/gelo/obsidiana se formando. */
+    @EventHandler(ignoreCancelled = true)
+    public void onForm(BlockFormEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onSpread(BlockSpreadEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onIgnite(BlockIgniteEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onLeavesDecay(LeavesDecayEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    /** Areia caindo, enderman, barcos, ovelha comendo grama... */
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+        plugin.regeneration().record(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        plugin.regeneration().recordAll(event.getBlocks());
+        for (Block block : event.getBlocks()) {
+            plugin.regeneration().record(block.getRelative(event.getDirection()));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        plugin.regeneration().recordAll(event.getBlocks());
+        for (Block block : event.getBlocks()) {
+            plugin.regeneration().record(block.getRelative(event.getDirection()));
+        }
+    }
+
+
+
     private boolean isProtectedWorld(Player player) {
         Match match = match();
         if (match == null) return false;
