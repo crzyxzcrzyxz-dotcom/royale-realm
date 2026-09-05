@@ -504,6 +504,29 @@ public class SpecialItemManager {
         center.getWorld().spawnParticle(Particle.EXPLOSION, center, 2);
     }
 
+    /** Explosao SEM quebrar blocos: o mapa nao pode ficar destruido pelo item. */
+    private void explosive(Projectile projectile, ConfigurationSection section, String id) {
+        Location center = projectile.getLocation();
+        double radius = section.getDouble("radius", 5);
+        double damage = section.getDouble("damage", 8.0);
+        boolean fire = section.getBoolean("fire", "fireball".equals(id));
+        center.getWorld().createExplosion(center, (float) section.getDouble("power", 2.0), false, false,
+                projectile);
+        center.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, center, 1);
+        center.getWorld().playSound(center, "entity.generic.explode", 1.4f, 1f);
+        for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (!(entity instanceof LivingEntity living)) continue;
+            double distance = living.getLocation().distance(center);
+            double scaled = damage * Math.max(0.2, 1 - (distance / Math.max(1, radius)));
+            living.damage(scaled, shooterOf(projectile));
+            if (fire) living.setFireTicks(section.getInt("fire-ticks", 60));
+        }
+    }
+
+    private Player shooterOf(Projectile projectile) {
+        return projectile.getShooter() instanceof Player shooter ? shooter : null;
+    }
+
     /** Launch pad: chamado quando o jogador pisa em um slime block do BR. */
     public void launch(Player player) {
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.launch-pad");
