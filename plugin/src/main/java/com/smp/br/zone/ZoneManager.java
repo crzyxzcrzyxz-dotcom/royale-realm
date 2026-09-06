@@ -369,7 +369,10 @@ public class ZoneManager {
         }
     }
 
-    /** Desenha a PAREDE quadrada da zona perto do jogador (mesma geometria do dano). */
+    /**
+     * Desenha a PAREDE da zona perto do jogador, com a mesma geometria usada
+     * para o dano. Formato conforme "zone.shape": SQUARE ou CIRCLE.
+     */
     public void showRing(Player player) {
         if (!plugin.configs().config().getBoolean("zone.particles", true)) return;
         if (!plugin.configs().config().getBoolean("effects.zone-ring", true)) return;
@@ -380,6 +383,16 @@ public class ZoneManager {
         double view = Math.max(8, plugin.configs().config().getDouble("zone.wall-view-distance", 48));
         double spacing = Math.max(0.5, plugin.configs().config().getDouble("zone.wall-spacing", 2.0));
         int height = Math.max(1, plugin.configs().config().getInt("zone.wall-height", 5));
+
+        if (circular()) {
+            double step = spacing / Math.max(1.0, radius); // radianos por ponto
+            for (double angle = 0; angle < Math.PI * 2; angle += step) {
+                double x = center.getX() + Math.cos(angle) * radius;
+                double z = center.getZ() + Math.sin(angle) * radius;
+                drawWallPoint(player, location, x, z, view, height);
+            }
+            return;
+        }
 
         double minX = center.getX() - radius;
         double maxX = center.getX() + radius;
