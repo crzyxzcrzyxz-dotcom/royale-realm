@@ -120,11 +120,14 @@ zone:
   initial:
     radius: -1
     radius-multiplier: 1.0
-  # A WorldBorder e apenas moldura do MAPA (nunca da zona): assim da para entrar
-  # e sair da safe zone quando quiser, tomando dano fora dela.
-  worldborder: true
+  # BARREIRA CUSTOMIZADA DO PLUGIN (nao usa a borda do Minecraft).
+  # SQUARE = quadrada | CIRCLE = redonda. O dano e a parede usam o mesmo formato.
+  shape: CIRCLE
+  # Moldura extra do MAPA usando a WorldBorder vanilla (sempre quadrada).
+  # Desligada por padrao: a barreira do jogo e a customizada acima.
+  worldborder: false
   worldborder-margin: 24
-  # parede de particulas que mostra a zona (mesma geometria quadrada do dano)
+  # parede de particulas que mostra a zona
   wall-view-distance: 48
   wall-spacing: 2.0
   wall-height: 5

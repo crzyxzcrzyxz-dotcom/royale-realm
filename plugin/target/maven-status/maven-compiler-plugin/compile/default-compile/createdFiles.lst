@@ -1,6 +1,9 @@
 com/smp/br/map/MapManager.class
 com/smp/br/player/PlayerDataManager.class
-com/smp/br/BattleRoyalePlugin.class
 com/smp/br/loot/LootManager.class
+com/smp/br/items/SpecialItemManager$1.class
 com/smp/br/config/ConfigManager.class
 com/smp/br/config/MessageManager.class
+com/smp/br/BattleRoyalePlugin.class
+com/smp/br/items/SpecialItemManager.class
+com/smp/br/items/SpecialItemManager$2.class
