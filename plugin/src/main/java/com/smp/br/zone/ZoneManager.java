@@ -156,14 +156,19 @@ public class ZoneManager {
         return new Location(map.world(), center.getX(), map.busHeight(), center.getZ());
     }
 
-    /** Distancia ate a borda QUADRADA da zona (0 = dentro). */
+    /**
+     * Distancia ate a borda da zona (0 = dentro). Usa exatamente a mesma
+     * geometria da parede desenhada, seja ela QUADRADA ou REDONDA - e isso que
+     * impede o antigo bug de tomar dano dentro da safe zone.
+     */
     public double distanceToZone(Location location) {
         World world = map.world();
         if (world == null || location.getWorld() == null) return 0;
         if (!world.equals(location.getWorld())) return 0;
         double dx = Math.abs(location.getX() - center.getX());
         double dz = Math.abs(location.getZ() - center.getZ());
-        return Math.max(0, Math.max(dx, dz) - radius);
+        double distance = circular() ? Math.sqrt(dx * dx + dz * dz) : Math.max(dx, dz);
+        return Math.max(0, distance - radius);
     }
 
     public double tolerance() {
