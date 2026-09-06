@@ -90,11 +90,12 @@ public class ZoneManager {
     }
 
     /**
-     * A WorldBorder e apenas moldura do MAPA (nunca da zona) para que o jogador
-     * consiga sair da safe zone a qualquer momento.
+     * A barreira e 100% do plugin (particulas + dano). A WorldBorder do Minecraft
+     * so entra como moldura opcional do MAPA (nunca da zona) e vem DESLIGADA,
+     * porque ela e sempre quadrada e empurra o jogador.
      */
     private void applyBorder() {
-        if (!plugin.configs().config().getBoolean("zone.worldborder", true)) return;
+        if (!useWorldBorder()) return;
         double size = (map.radius() + plugin.configs().config().getDouble("zone.worldborder-margin", 24)) * 2;
         border.setCenter(map.centerX(), map.centerZ());
         border.setSize(Math.max(1.0, size));
@@ -104,8 +105,17 @@ public class ZoneManager {
         border.setDamageBuffer(1_000_000);
     }
 
+    private boolean useWorldBorder() {
+        return plugin.configs().config().getBoolean("zone.worldborder", false);
+    }
+
+    /** SQUARE (padrao) ou CIRCLE: formato da barreira customizada. */
+    private boolean circular() {
+        return "CIRCLE".equalsIgnoreCase(plugin.configs().config().getString("zone.shape", "SQUARE"));
+    }
+
     public void attach(Player player) {
-        if (plugin.configs().config().getBoolean("zone.worldborder", true)) {
+        if (useWorldBorder()) {
             player.setWorldBorder(border);
         }
         if (plugin.configs().config().getBoolean("zone.bossbar", true)) {
@@ -146,14 +156,19 @@ public class ZoneManager {
         return new Location(map.world(), center.getX(), map.busHeight(), center.getZ());
     }
 
-    /** Distancia ate a borda QUADRADA da zona (0 = dentro). */
+    /**
+     * Distancia ate a borda da zona (0 = dentro). Usa exatamente a mesma
+     * geometria da parede desenhada, seja ela QUADRADA ou REDONDA - e isso que
+     * impede o antigo bug de tomar dano dentro da safe zone.
+     */
     public double distanceToZone(Location location) {
         World world = map.world();
         if (world == null || location.getWorld() == null) return 0;
         if (!world.equals(location.getWorld())) return 0;
         double dx = Math.abs(location.getX() - center.getX());
         double dz = Math.abs(location.getZ() - center.getZ());
-        return Math.max(0, Math.max(dx, dz) - radius);
+        double distance = circular() ? Math.sqrt(dx * dx + dz * dz) : Math.max(dx, dz);
+        return Math.max(0, distance - radius);
     }
 
     public double tolerance() {
@@ -354,7 +369,10 @@ public class ZoneManager {
         }
     }
 
-    /** Desenha a PAREDE quadrada da zona perto do jogador (mesma geometria do dano). */
+    /**
+     * Desenha a PAREDE da zona perto do jogador, com a mesma geometria usada
+     * para o dano. Formato conforme "zone.shape": SQUARE ou CIRCLE.
+     */
     public void showRing(Player player) {
         if (!plugin.configs().config().getBoolean("zone.particles", true)) return;
         if (!plugin.configs().config().getBoolean("effects.zone-ring", true)) return;
@@ -365,6 +383,16 @@ public class ZoneManager {
         double view = Math.max(8, plugin.configs().config().getDouble("zone.wall-view-distance", 48));
         double spacing = Math.max(0.5, plugin.configs().config().getDouble("zone.wall-spacing", 2.0));
         int height = Math.max(1, plugin.configs().config().getInt("zone.wall-height", 5));
+
+        if (circular()) {
+            double step = spacing / Math.max(1.0, radius); // radianos por ponto
+            for (double angle = 0; angle < Math.PI * 2; angle += step) {
+                double x = center.getX() + Math.cos(angle) * radius;
+                double z = center.getZ() + Math.sin(angle) * radius;
+                drawWallPoint(player, location, x, z, view, height);
+            }
+            return;
+        }
 
         double minX = center.getX() - radius;
         double maxX = center.getX() + radius;

@@ -4,6 +4,7 @@ import com.smp.br.BattleRoyalePlugin;
 import com.smp.br.map.BRMap;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
