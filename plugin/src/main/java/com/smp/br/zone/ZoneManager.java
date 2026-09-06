@@ -90,11 +90,12 @@ public class ZoneManager {
     }
 
     /**
-     * A WorldBorder e apenas moldura do MAPA (nunca da zona) para que o jogador
-     * consiga sair da safe zone a qualquer momento.
+     * A barreira e 100% do plugin (particulas + dano). A WorldBorder do Minecraft
+     * so entra como moldura opcional do MAPA (nunca da zona) e vem DESLIGADA,
+     * porque ela e sempre quadrada e empurra o jogador.
      */
     private void applyBorder() {
-        if (!plugin.configs().config().getBoolean("zone.worldborder", true)) return;
+        if (!useWorldBorder()) return;
         double size = (map.radius() + plugin.configs().config().getDouble("zone.worldborder-margin", 24)) * 2;
         border.setCenter(map.centerX(), map.centerZ());
         border.setSize(Math.max(1.0, size));
@@ -104,8 +105,17 @@ public class ZoneManager {
         border.setDamageBuffer(1_000_000);
     }
 
+    private boolean useWorldBorder() {
+        return plugin.configs().config().getBoolean("zone.worldborder", false);
+    }
+
+    /** SQUARE (padrao) ou CIRCLE: formato da barreira customizada. */
+    private boolean circular() {
+        return "CIRCLE".equalsIgnoreCase(plugin.configs().config().getString("zone.shape", "SQUARE"));
+    }
+
     public void attach(Player player) {
-        if (plugin.configs().config().getBoolean("zone.worldborder", true)) {
+        if (useWorldBorder()) {
             player.setWorldBorder(border);
         }
         if (plugin.configs().config().getBoolean("zone.bossbar", true)) {
