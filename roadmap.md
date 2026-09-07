@@ -1,7 +1,12 @@
 # Roadmap - Plugin Battle Royale
 
 ## Em andamento
-- [ ] Barreira 100% customizada do plugin (sem WorldBorder), com formato configurável: SQUARE ou CIRCLE
+- [ ] Barreira visível de longe (parede alta + indicador de distância na actionbar)
+- [ ] Baú de morte duplicando itens do jogador
+- [ ] Reset real do mapa (blocos quebrados e colocados voltam ao original)
+- [ ] Todos os utilitários (bola de fogo, launch pad, etc.) arremessáveis como ovo/bola de neve
+- [ ] Novo item: Fullbox
+- [ ] Tela estilo Fortnite ao sair do ônibus + animações
 - [x] Safe zone: geometria única (dano = barreira visual), barreira maior e configurável
 - [x] Barreira atravessável a qualquer momento (não empurra o jogador)
 - [x] Zona final fecha por completo (centro configurável: aleatório, centro ou 0,0)
@@ -12,7 +17,7 @@
 - [x] Encantamentos válidos por item e dentro do limite vanilla
 - [x] Baú de morte precisa conter os itens do jogador
 - [x] Reset completo do mapa (blocos, líquidos, fogo, containers, entidades)
-- [ ] Tela estilo Fortnite ao sair do ônibus + animações
+
 
 ## Concluído
 - [x] Fluxo de entrada, embarque e ônibus
