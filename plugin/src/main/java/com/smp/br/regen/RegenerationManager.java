@@ -76,9 +76,15 @@ public class RegenerationManager {
 
     public void record(Block block) {
         if (!tracking || block == null) return;
-        String key = key(block.getLocation());
-        if (changed.containsKey(key)) return;
-        changed.put(key, block.getState());
+        record(block.getState());
+    }
+
+    /** Guarda um estado JA capturado (ex.: estado substituido de um BlockPlaceEvent). */
+    public void record(BlockState state) {
+        if (!tracking || state == null || state.getWorld() == null) return;
+        String key = key(state.getLocation());
+        if (changed.containsKey(key)) return; // o primeiro estado e o original
+        changed.put(key, state);
     }
 
     public void recordAll(List<Block> blocks) {

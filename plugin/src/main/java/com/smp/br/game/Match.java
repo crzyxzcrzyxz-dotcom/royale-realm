@@ -728,10 +728,20 @@ public class Match {
         // usa o estado AO VIVO: um snapshot nao persiste o inventario de forma confiavel
         Chest chest = liveChest(block);
         if (chest == null) return;
+        List<ItemStack> overflow = new ArrayList<>();
         for (ItemStack item : items) {
-            chest.getInventory().addItem(item);
+            overflow.addAll(chest.getInventory().addItem(item).values());
         }
-        chest.update(true, false);
+        // inventario cheio (41 slots) nao cabe num bau simples: segundo bau logo acima
+        if (!overflow.isEmpty()) {
+            Block extra = block.getRelative(0, 1, 0);
+            plugin.regeneration().record(extra);
+            extra.setType(Material.CHEST, false);
+            Chest second = liveChest(extra);
+            if (second != null) {
+                for (ItemStack item : overflow) second.getInventory().addItem(item);
+            }
+        }
         plugin.getLogger().info("Bau de morte de " + player.getName() + " com " + items.size() + " item(ns) em "
                 + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
         if (plugin.configs().config().getBoolean("death.chest-glow", true)) {

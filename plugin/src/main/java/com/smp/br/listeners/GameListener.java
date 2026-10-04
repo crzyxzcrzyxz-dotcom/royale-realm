@@ -309,7 +309,16 @@ public class GameListener implements Listener {
                 plugin.messages().send(player, "protection.build");
                 return;
             }
-            plugin.regeneration().record(event.getBlockReplacedState().getBlock());
+            // BUG ANTIGO: getBlockReplacedState().getBlock().getState() ja devolvia o bloco
+            // NOVO (o evento dispara depois da colocacao), entao o "original" salvo era o
+            // proprio bloco colocado e o reset nunca o removia. Agora salva o estado anterior.
+            if (event instanceof org.bukkit.event.block.BlockMultiPlaceEvent multi) {
+                for (org.bukkit.block.BlockState state : multi.getReplacedBlockStates()) {
+                    plugin.regeneration().record(state);
+                }
+            } else {
+                plugin.regeneration().record(event.getBlockReplacedState());
+            }
             return;
         }
         if (isProtectedWorld(player) && !player.hasPermission("battleroyale.bypass")) {
