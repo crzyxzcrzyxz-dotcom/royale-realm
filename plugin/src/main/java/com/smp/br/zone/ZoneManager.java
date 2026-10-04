@@ -342,17 +342,24 @@ public class ZoneManager {
         if (world == null || !world.equals(location.getWorld())) return;
         double distance = distanceToZone(location);
         if (distance <= tolerance()) {
-            if (plugin.configs().config().getBoolean("zone.actionbar", true) && mode != Mode.FINAL) {
-                plugin.messages().actionBar(player, plugin.messages().raw(
-                        mode == Mode.SHRINKING ? "zone.shrinking" : "zone.waiting",
+            if (plugin.configs().config().getBoolean("zone.actionbar", true)) {
+                // dentro da zona: SEMPRE mostra a distancia ate a parede
+                int toEdge = (int) Math.max(0, distanceToEdge(location));
+                String color = toEdge <= 10 ? "&c" : (toEdge <= 30 ? "&e" : "&a");
+                plugin.messages().actionBar(player, plugin.messages().raw("zone.inside",
+                        "%edge%", color + toEdge,
                         "%time%", String.valueOf(Math.max(0, seconds)),
+                        "%state%", mode == Mode.SHRINKING ? "&cFECHANDO" : (mode == Mode.FINAL ? "&4FINAL" : "&bPARADA"),
                         "%phase%", String.valueOf(Math.min(phase + 1, totalPhases())),
                         "%total%", String.valueOf(totalPhases())));
             }
             return;
         }
         plugin.messages().actionBar(player,
-                plugin.messages().raw("zone.outside", "%distance%", String.valueOf((int) distance)));
+                plugin.messages().raw("zone.outside", "%distance%", String.valueOf((int) distance),
+                        "%direction%", arrowToCenter(player)));
+        // contorno vermelho na tela (aviso vanilla) so para este jogador, sem empurrar
+        warnScreen(player, true);
         if (!damageAllowed) return;
         plugin.messages().sound(player, "storm-damage");
         if (plugin.configs().config().getBoolean("zone.particles", true)) {
