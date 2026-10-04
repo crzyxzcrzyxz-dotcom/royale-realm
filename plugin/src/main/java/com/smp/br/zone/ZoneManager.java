@@ -124,6 +124,7 @@ public class ZoneManager {
     }
 
     public void detach(Player player) {
+        warned.remove(player.getUniqueId());
         player.setWorldBorder(null);
         player.hideBossBar(bossBar);
     }
@@ -342,6 +343,7 @@ public class ZoneManager {
         if (world == null || !world.equals(location.getWorld())) return;
         double distance = distanceToZone(location);
         if (distance <= tolerance()) {
+            warnScreen(player, false);
             if (plugin.configs().config().getBoolean("zone.actionbar", true)) {
                 // dentro da zona: SEMPRE mostra a distancia ate a parede
                 int toEdge = (int) Math.max(0, distanceToEdge(location));
@@ -366,6 +368,47 @@ public class ZoneManager {
             player.getWorld().spawnParticle(particle(), location.clone().add(0, 1, 0), 14, 0.5, 1, 0.5, 0.02);
         }
         player.damage(currentDamage());
+    }
+
+
+    /** Distancia de DENTRO ate a parede (mesma geometria da zona). */
+    public double distanceToEdge(Location location) {
+        double dx = Math.abs(location.getX() - center.getX());
+        double dz = Math.abs(location.getZ() - center.getZ());
+        double distance = circular() ? Math.sqrt(dx * dx + dz * dz) : Math.max(dx, dz);
+        return radius - distance;
+    }
+
+    /** Seta relativa a direcao que o jogador olha, apontando para o centro da zona. */
+    private String arrowToCenter(Player player) {
+        Location loc = player.getLocation();
+        double angleTo = Math.toDegrees(Math.atan2(-(center.getX() - loc.getX()), center.getZ() - loc.getZ()));
+        double rel = ((angleTo - loc.getYaw()) % 360 + 540) % 360 - 180;
+        String[] arrows = {"⬆", "⬈", "➡", "⬊", "⬇", "⬋", "⬅", "⬉"};
+        int index = (int) Math.round((rel + 360) % 360 / 45.0) % 8;
+        return arrows[index];
+    }
+
+    private final java.util.Set<java.util.UUID> warned = new java.util.HashSet<>();
+
+    /** Vinheta vermelha na tela de quem esta fora (borda falsa so para o cliente, sem dano). */
+    private void warnScreen(Player player, boolean on) {
+        if (useWorldBorder()) return;
+        if (!plugin.configs().config().getBoolean("zone.red-screen", true)) return;
+        if (on == warned.contains(player.getUniqueId())) return;
+        if (on) {
+            WorldBorder fake = Bukkit.createWorldBorder();
+            fake.setCenter(player.getLocation());
+            fake.setSize(59_999_000);
+            fake.setWarningDistance(59_999_000);
+            fake.setDamageAmount(0);
+            fake.setDamageBuffer(59_999_000);
+            player.setWorldBorder(fake);
+            warned.add(player.getUniqueId());
+        } else {
+            player.setWorldBorder(null);
+            warned.remove(player.getUniqueId());
+        }
     }
 
     private Particle particle() {
@@ -419,11 +462,18 @@ public class ZoneManager {
     private void drawWallPoint(Player player, Location from, double x, double z, double view, int height) {
         double dx = x - from.getX();
         double dz = z - from.getZ();
-        if (dx * dx + dz * dz > view * view) return;
-        for (int h = 0; h < height; h++) {
-            Location point = new Location(from.getWorld(), x, from.getY() + h * 1.5, z);
-            player.spawnParticle(Particle.END_ROD, point, 1, 0, 0.4, 0, 0);
+        double dist2 = dx * dx + dz * dz;
+        if (dist2 > view * view) return;
+        // perto da parede ela fica mais VERMELHA e mais densa
+        boolean near = dist2 < 12 * 12;
+        Particle.DustOptions dust = new Particle.DustOptions(
+                near ? org.bukkit.Color.fromRGB(255, 60, 200) : org.bukkit.Color.fromRGB(150, 70, 255), near ? 2.2f : 1.8f);
+        int below = Math.max(2, height / 2);
+        for (int h = -below; h < height; h++) {
+            Location point = new Location(from.getWorld(), x, from.getY() + h * 1.2, z);
+            player.spawnParticle(Particle.DUST, point, near ? 2 : 1, 0.05, 0.25, 0.05, 0, dust);
         }
+        player.spawnParticle(Particle.END_ROD, new Location(from.getWorld(), x, from.getY() + 1, z), 1, 0, 0.6, 0, 0);
     }
 
     public double initialRadius() {
