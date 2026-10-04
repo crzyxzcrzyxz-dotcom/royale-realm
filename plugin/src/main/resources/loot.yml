@@ -79,6 +79,7 @@ tables:
     - {material: SPECIAL:shield-potion, min: 1, max: 2, weight: 10}
     - {material: SPECIAL:smoke-bomb, min: 1, max: 2, weight: 8}
     - {material: SPECIAL:launch-pad, min: 1, max: 2, weight: 8}
+    - {material: SPECIAL:fullbox, min: 1, max: 2, weight: 8}
     - {material: COBWEB, min: 2, max: 5, weight: 8}
     - {material: ENDER_PEARL, min: 1, max: 2, weight: 6}
   EPIC:
@@ -107,6 +108,7 @@ tables:
     - {material: SPECIAL:chug-jug, min: 1, max: 1, weight: 8}
     - {material: SPECIAL:shockwave, min: 1, max: 2, weight: 8}
     - {material: SPECIAL:port-a-fort, min: 1, max: 1, weight: 7}
+    - {material: SPECIAL:fullbox, min: 2, max: 3, weight: 6}
     - {material: SPECIAL:rift, min: 1, max: 2, weight: 7}
     - {material: SPECIAL:fireball, min: 1, max: 2, weight: 8}
   MYTHIC:
