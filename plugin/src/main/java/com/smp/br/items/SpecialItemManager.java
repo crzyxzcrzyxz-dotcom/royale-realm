@@ -129,16 +129,10 @@ public class SpecialItemManager {
             case "bandage" -> {
                 return useBandage(player, item);
             }
-            case "impulse" -> {
-                return throwSpecial(player, item, "impulse", 1.8);
+            // TODOS os utilitarios sao arremessaveis (estilo ovo/bola de neve)
+            case "impulse", "smoke-bomb", "shockwave", "boogie-bomb", "launch-pad", "port-a-fort", "fullbox" -> {
+                return throwSpecial(player, item, id, 1.6);
             }
-            case "smoke-bomb" -> {
-                return throwSmoke(player, item);
-            }
-            case "shockwave", "boogie-bomb", "launch-pad", "port-a-fort" -> {
-                return throwSpecial(player, item, id, 1.65);
-            }
-            // Todos arremessaveis: ativam no impacto, sem precisar mirar num bloco.
             case "fireball", "freeze-grenade", "lightning-grenade", "healing-grenade", "cluster-bomb" -> {
                 return throwSpecial(player, item, id, 1.9);
             }
@@ -353,10 +347,24 @@ public class SpecialItemManager {
         return true;
     }
 
+    /**
+     * Arremessa o item como um ovo/bola de neve: voa em arco, mostra o PROPRIO item
+     * em voo e ativa no impacto (chao, parede ou jogador) - nao precisa mirar num bloco.
+     */
     private boolean throwSpecial(Player player, ItemStack item, String id, double speed) {
+        if (onCooldown(player, "throw", 6)) return true;
         Snowball projectile = player.launchProjectile(Snowball.class);
+        ItemStack visual = item.clone();
+        visual.setAmount(1);
+        try {
+            projectile.setItem(visual);
+        } catch (Throwable ignored) {
+            // API sem setItem: continua com a bola de neve padrao
+        }
         projectile.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
         projectile.setVelocity(player.getEyeLocation().getDirection().multiply(speed));
+        player.playSound(player.getLocation(), "entity.snowball.throw", 1f, 0.8f);
+        setCooldown(player, "throw", 6);
         consume(item);
         return true;
     }

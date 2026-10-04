@@ -454,9 +454,12 @@ public class GameListener implements Listener {
     // Itens / inventarios
     // ------------------------------------------------------------------
 
-    @EventHandler(ignoreCancelled = true)
+    // ignoreCancelled NAO pode ser true aqui: o Minecraft entrega o clique direito
+    // no AR ja "cancelado", e por isso os itens so funcionavam mirando num bloco.
+    @EventHandler
     public void onInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
+        if (event.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) return;
         Match match = match();
         if (match == null) return;
         Participant participant = match.participant(player.getUniqueId());
