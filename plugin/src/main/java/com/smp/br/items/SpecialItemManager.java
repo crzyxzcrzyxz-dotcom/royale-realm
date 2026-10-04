@@ -129,16 +129,10 @@ public class SpecialItemManager {
             case "bandage" -> {
                 return useBandage(player, item);
             }
-            case "impulse" -> {
-                return throwSpecial(player, item, "impulse", 1.8);
+            // TODOS os utilitarios sao arremessaveis (estilo ovo/bola de neve)
+            case "impulse", "smoke-bomb", "shockwave", "boogie-bomb", "launch-pad", "port-a-fort", "fullbox" -> {
+                return throwSpecial(player, item, id, 1.6);
             }
-            case "smoke-bomb" -> {
-                return throwSmoke(player, item);
-            }
-            case "shockwave", "boogie-bomb", "launch-pad", "port-a-fort" -> {
-                return throwSpecial(player, item, id, 1.65);
-            }
-            // Todos arremessaveis: ativam no impacto, sem precisar mirar num bloco.
             case "fireball", "freeze-grenade", "lightning-grenade", "healing-grenade", "cluster-bomb" -> {
                 return throwSpecial(player, item, id, 1.9);
             }
@@ -353,10 +347,24 @@ public class SpecialItemManager {
         return true;
     }
 
+    /**
+     * Arremessa o item como um ovo/bola de neve: voa em arco, mostra o PROPRIO item
+     * em voo e ativa no impacto (chao, parede ou jogador) - nao precisa mirar num bloco.
+     */
     private boolean throwSpecial(Player player, ItemStack item, String id, double speed) {
+        if (onCooldown(player, "throw", 6)) return true;
         Snowball projectile = player.launchProjectile(Snowball.class);
+        ItemStack visual = item.clone();
+        visual.setAmount(1);
+        try {
+            projectile.setItem(visual);
+        } catch (Throwable ignored) {
+            // API sem setItem: continua com a bola de neve padrao
+        }
         projectile.getPersistentDataContainer().set(Keys.SPECIAL, PersistentDataType.STRING, id);
         projectile.setVelocity(player.getEyeLocation().getDirection().multiply(speed));
+        player.playSound(player.getLocation(), "entity.snowball.throw", 1f, 0.8f);
+        setCooldown(player, "throw", 6);
         consume(item);
         return true;
     }
@@ -430,6 +438,10 @@ public class SpecialItemManager {
                 plugin.regeneration().record(block);
                 block.setType(Material.SLIME_BLOCK, false);
             }
+            return;
+        }
+        if (id.equals("fullbox")) {
+            buildFullbox(projectile, section);
             return;
         }
         if (id.equals("port-a-fort")) {
@@ -572,6 +584,38 @@ public class SpecialItemManager {
 
     private void consume(ItemStack item) {
         item.setAmount(Math.max(0, item.getAmount() - 1));
+    }
+
+    /**
+     * FULLBOX: caixa fechada (piso, 4 paredes e teto) instantanea no ponto de impacto.
+     * So substitui ar/plantas/liquidos (nunca quebra o mapa) e tudo e revertido no reset.
+     */
+    private void buildFullbox(Projectile projectile, ConfigurationSection section) {
+        Location center = projectile.getLocation();
+        if (center.getWorld() == null) return;
+        int half = Math.max(1, Math.min(4, section.getInt("size", 1)));
+        int height = Math.max(2, Math.min(8, section.getInt("height", 3)));
+        Material wall = material(section.getString("block", "OAK_PLANKS"), Material.OAK_PLANKS);
+        Material window = material(section.getString("window-block", "GLASS"), Material.GLASS);
+        Block origin = center.getBlock();
+        // assenta no chao: se o impacto foi no ar, desce ate achar apoio (max 6 blocos)
+        for (int i = 0; i < 6 && origin.getRelative(0, -1, 0).isPassable(); i++) origin = origin.getRelative(0, -1, 0);
+        for (int y = -1; y <= height; y++) {
+            for (int x = -half - 1; x <= half + 1; x++) {
+                for (int z = -half - 1; z <= half + 1; z++) {
+                    boolean shell = y == -1 || y == height || Math.abs(x) == half + 1 || Math.abs(z) == half + 1;
+                    if (!shell) continue;
+                    Block block = origin.getRelative(x, y, z);
+                    Material type = block.getType();
+                    if (!(type.isAir() || block.isLiquid() || block.isPassable())) continue;
+                    plugin.regeneration().record(block);
+                    boolean glass = y == 1 && (x == 0 || z == 0) && y != height;
+                    block.setType(glass ? window : wall, false);
+                }
+            }
+        }
+        center.getWorld().spawnParticle(Particle.CLOUD, origin.getLocation().add(0.5, 1, 0.5), 40, half + 1, 1, half + 1, 0.02);
+        center.getWorld().playSound(center, "block.wood.place", 1.2f, 0.8f);
     }
 
     private boolean onCooldown(Player player, String key, int ticks) {

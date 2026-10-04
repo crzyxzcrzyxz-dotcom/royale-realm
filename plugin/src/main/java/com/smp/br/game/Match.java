@@ -317,6 +317,9 @@ public class Match {
             }
             case ACTIVE, STORM, FINAL -> {
                 if (secondTick) tickGame();
+                // a parede e redesenhada a cada 5 ticks: particulas somem em <1s,
+                // desenhar so 1x por segundo deixava a barreira praticamente INVISIVEL
+                if (tickCounter % 5 == 0) drawZoneWalls();
             }
             case ENDING -> {
                 if (secondTick) {
@@ -401,6 +404,13 @@ public class Match {
         }
     }
 
+    private void drawZoneWalls() {
+        for (Participant participant : participants.values()) {
+            Player player = Bukkit.getPlayer(participant.uuid());
+            if (player != null) zone.showRing(player);
+        }
+    }
+
     private void tickGame() {
         elapsedSeconds++;
         boolean evolving = zone.tickSecond();
@@ -425,7 +435,6 @@ public class Match {
                     || elapsedSeconds - participant.landedAtSecond() > grace;
             boolean damageAllowed = personalGraceDone && (!onlyAfterLanding || landed);
             zone.applyStorm(player, damageAllowed);
-            zone.showRing(player);
         }
 
         int max = plugin.configs().config().getInt("match.max-duration-seconds", 1800);
@@ -699,26 +708,25 @@ public class Match {
     public void createDeathChest(Player player, List<ItemStack> drops, Location deathLocation) {
         if (!plugin.configs().config().getBoolean("death.chest", true)) return;
 
+        // Fonte UNICA: o inventario real do jogador. getContents() do PlayerInventory
+        // ja inclui armadura e mao secundaria. Os drops do evento sao copias desses
+        // mesmos itens - somar os dois era o que DUPLICAVA tudo no bau.
         List<ItemStack> items = new ArrayList<>();
-        Set<Integer> seen = new HashSet<>();
-        if (drops != null) {
-            for (ItemStack drop : drops) {
-                if (drop == null || drop.getType().isAir()) continue;
-                items.add(drop.clone());
-                seen.add(System.identityHashCode(drop));
-            }
-        }
         for (ItemStack content : player.getInventory().getContents()) {
             if (content == null || content.getType().isAir()) continue;
-            if (seen.contains(System.identityHashCode(content))) continue;
             if (content.getType() == Material.ELYTRA && isTemporary(content)) continue;
             items.add(content.clone());
         }
-        ItemStack offhand = player.getInventory().getItemInOffHand();
-        if (offhand != null && !offhand.getType().isAir() && !seen.contains(System.identityHashCode(offhand))) {
-            items.add(offhand.clone());
+        // keepInventory desligado em alguns servidores esvazia o inventario antes: usa os drops so nesse caso
+        if (items.isEmpty() && drops != null) {
+            for (ItemStack drop : drops) {
+                if (drop == null || drop.getType().isAir()) continue;
+                if (drop.getType() == Material.ELYTRA && isTemporary(drop)) continue;
+                items.add(drop.clone());
+            }
         }
         if (items.isEmpty()) return;
+        player.getInventory().clear();
 
         Location location = safeChestLocation(deathLocation);
         if (location == null) return;
@@ -729,10 +737,20 @@ public class Match {
         // usa o estado AO VIVO: um snapshot nao persiste o inventario de forma confiavel
         Chest chest = liveChest(block);
         if (chest == null) return;
+        List<ItemStack> overflow = new ArrayList<>();
         for (ItemStack item : items) {
-            chest.getInventory().addItem(item);
+            overflow.addAll(chest.getInventory().addItem(item).values());
         }
-        chest.update(true, false);
+        // inventario cheio (41 slots) nao cabe num bau simples: segundo bau logo acima
+        if (!overflow.isEmpty()) {
+            Block extra = block.getRelative(0, 1, 0);
+            plugin.regeneration().record(extra);
+            extra.setType(Material.CHEST, false);
+            Chest second = liveChest(extra);
+            if (second != null) {
+                for (ItemStack item : overflow) second.getInventory().addItem(item);
+            }
+        }
         plugin.getLogger().info("Bau de morte de " + player.getName() + " com " + items.size() + " item(ns) em "
                 + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
         if (plugin.configs().config().getBoolean("death.chest-glow", true)) {

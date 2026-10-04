@@ -161,3 +161,15 @@ specials:
     lore: ["&7Arremesse: cura aliados na area."]
     radius: 6.0
     seconds: 8
+  fullbox:
+    enabled: true
+    material: CHEST_MINECART
+    name: "&6&lFULLBOX"
+    lore:
+      - "&7Arremesse: cria uma caixa FECHADA"
+      - "&7(piso, paredes e teto) para se proteger."
+    # meia-largura interna (1 = 3x3 por dentro)
+    size: 1
+    height: 3
+    block: OAK_PLANKS
+    window-block: GLASS

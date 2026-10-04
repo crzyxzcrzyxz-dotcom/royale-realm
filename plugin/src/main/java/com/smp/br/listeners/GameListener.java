@@ -309,7 +309,16 @@ public class GameListener implements Listener {
                 plugin.messages().send(player, "protection.build");
                 return;
             }
-            plugin.regeneration().record(event.getBlockReplacedState().getBlock());
+            // BUG ANTIGO: getBlockReplacedState().getBlock().getState() ja devolvia o bloco
+            // NOVO (o evento dispara depois da colocacao), entao o "original" salvo era o
+            // proprio bloco colocado e o reset nunca o removia. Agora salva o estado anterior.
+            if (event instanceof org.bukkit.event.block.BlockMultiPlaceEvent multi) {
+                for (org.bukkit.block.BlockState state : multi.getReplacedBlockStates()) {
+                    plugin.regeneration().record(state);
+                }
+            } else {
+                plugin.regeneration().record(event.getBlockReplacedState());
+            }
             return;
         }
         if (isProtectedWorld(player) && !player.hasPermission("battleroyale.bypass")) {
@@ -445,9 +454,12 @@ public class GameListener implements Listener {
     // Itens / inventarios
     // ------------------------------------------------------------------
 
-    @EventHandler(ignoreCancelled = true)
+    // ignoreCancelled NAO pode ser true aqui: o Minecraft entrega o clique direito
+    // no AR ja "cancelado", e por isso os itens so funcionavam mirando num bloco.
+    @EventHandler
     public void onInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
+        if (event.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) return;
         Match match = match();
         if (match == null) return;
         Participant participant = match.participant(player.getUniqueId());
