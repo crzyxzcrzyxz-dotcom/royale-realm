@@ -440,6 +440,10 @@ public class SpecialItemManager {
             }
             return;
         }
+        if (id.equals("fullbox")) {
+            buildFullbox(projectile, section);
+            return;
+        }
         if (id.equals("port-a-fort")) {
             int size = section.getInt("size", 2);
             int height = section.getInt("height", 4);
@@ -580,6 +584,38 @@ public class SpecialItemManager {
 
     private void consume(ItemStack item) {
         item.setAmount(Math.max(0, item.getAmount() - 1));
+    }
+
+    /**
+     * FULLBOX: caixa fechada (piso, 4 paredes e teto) instantanea no ponto de impacto.
+     * So substitui ar/plantas/liquidos (nunca quebra o mapa) e tudo e revertido no reset.
+     */
+    private void buildFullbox(Projectile projectile, ConfigurationSection section) {
+        Location center = projectile.getLocation();
+        if (center.getWorld() == null) return;
+        int half = Math.max(1, Math.min(4, section.getInt("size", 1)));
+        int height = Math.max(2, Math.min(8, section.getInt("height", 3)));
+        Material wall = material(section.getString("block", "OAK_PLANKS"), Material.OAK_PLANKS);
+        Material window = material(section.getString("window-block", "GLASS"), Material.GLASS);
+        Block origin = center.getBlock();
+        // assenta no chao: se o impacto foi no ar, desce ate achar apoio (max 6 blocos)
+        for (int i = 0; i < 6 && origin.getRelative(0, -1, 0).isPassable(); i++) origin = origin.getRelative(0, -1, 0);
+        for (int y = -1; y <= height; y++) {
+            for (int x = -half - 1; x <= half + 1; x++) {
+                for (int z = -half - 1; z <= half + 1; z++) {
+                    boolean shell = y == -1 || y == height || Math.abs(x) == half + 1 || Math.abs(z) == half + 1;
+                    if (!shell) continue;
+                    Block block = origin.getRelative(x, y, z);
+                    Material type = block.getType();
+                    if (!(type.isAir() || block.isLiquid() || block.isPassable())) continue;
+                    plugin.regeneration().record(block);
+                    boolean glass = y == 1 && (x == 0 || z == 0) && y != height;
+                    block.setType(glass ? window : wall, false);
+                }
+            }
+        }
+        center.getWorld().spawnParticle(Particle.CLOUD, origin.getLocation().add(0.5, 1, 0.5), 40, half + 1, 1, half + 1, 0.02);
+        center.getWorld().playSound(center, "block.wood.place", 1.2f, 0.8f);
     }
 
     private boolean onCooldown(Player player, String key, int ticks) {
