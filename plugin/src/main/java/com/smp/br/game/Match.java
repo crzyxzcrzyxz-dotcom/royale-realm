@@ -699,26 +699,25 @@ public class Match {
     public void createDeathChest(Player player, List<ItemStack> drops, Location deathLocation) {
         if (!plugin.configs().config().getBoolean("death.chest", true)) return;
 
+        // Fonte UNICA: o inventario real do jogador. getContents() do PlayerInventory
+        // ja inclui armadura e mao secundaria. Os drops do evento sao copias desses
+        // mesmos itens - somar os dois era o que DUPLICAVA tudo no bau.
         List<ItemStack> items = new ArrayList<>();
-        Set<Integer> seen = new HashSet<>();
-        if (drops != null) {
-            for (ItemStack drop : drops) {
-                if (drop == null || drop.getType().isAir()) continue;
-                items.add(drop.clone());
-                seen.add(System.identityHashCode(drop));
-            }
-        }
         for (ItemStack content : player.getInventory().getContents()) {
             if (content == null || content.getType().isAir()) continue;
-            if (seen.contains(System.identityHashCode(content))) continue;
             if (content.getType() == Material.ELYTRA && isTemporary(content)) continue;
             items.add(content.clone());
         }
-        ItemStack offhand = player.getInventory().getItemInOffHand();
-        if (offhand != null && !offhand.getType().isAir() && !seen.contains(System.identityHashCode(offhand))) {
-            items.add(offhand.clone());
+        // keepInventory desligado em alguns servidores esvazia o inventario antes: usa os drops so nesse caso
+        if (items.isEmpty() && drops != null) {
+            for (ItemStack drop : drops) {
+                if (drop == null || drop.getType().isAir()) continue;
+                if (drop.getType() == Material.ELYTRA && isTemporary(drop)) continue;
+                items.add(drop.clone());
+            }
         }
         if (items.isEmpty()) return;
+        player.getInventory().clear();
 
         Location location = safeChestLocation(deathLocation);
         if (location == null) return;
