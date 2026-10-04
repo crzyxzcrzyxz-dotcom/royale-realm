@@ -283,11 +283,29 @@ public class RegenerationManager {
                     }
                 }
                 if (clearQueue.isEmpty() && placeQueue.isEmpty()) {
+                    // passagem de VERIFICACAO: confere bloco a bloco e reaplica o que nao voltou
+                    int failed = 0;
+                    for (BlockState state : placeOrder) {
+                        try {
+                            Block block = state.getBlock();
+                            if (block.getType() != state.getType()
+                                    || !block.getBlockData().equals(state.getBlockData())) {
+                                state.update(true, false);
+                                if (block.getType() != state.getType()) {
+                                    failed++;
+                                    plugin.getLogger().warning("Falha ao restaurar bloco em " + state.getX() + ","
+                                            + state.getY() + "," + state.getZ());
+                                }
+                            }
+                        } catch (Exception ex) {
+                            failed++;
+                        }
+                    }
                     restoreContainers(map);
                     clearGroundItems(map);
                     restoring = false;
                     cancel();
-                    plugin.getLogger().info("Mapa restaurado: " + total + " bloco(s) revertido(s).");
+                    plugin.getLogger().info("Mapa restaurado: " + (total - failed) + "/" + total + " bloco(s) revertido(s).");
                     if (done != null) done.run();
                 }
             }
