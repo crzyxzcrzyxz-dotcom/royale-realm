@@ -317,6 +317,9 @@ public class Match {
             }
             case ACTIVE, STORM, FINAL -> {
                 if (secondTick) tickGame();
+                // a parede e redesenhada a cada 5 ticks: particulas somem em <1s,
+                // desenhar so 1x por segundo deixava a barreira praticamente INVISIVEL
+                if (tickCounter % 5 == 0) drawZoneWalls();
             }
             case ENDING -> {
                 if (secondTick) {
@@ -401,6 +404,13 @@ public class Match {
         }
     }
 
+    private void drawZoneWalls() {
+        for (Participant participant : participants.values()) {
+            Player player = Bukkit.getPlayer(participant.uuid());
+            if (player != null) zone.showRing(player);
+        }
+    }
+
     private void tickGame() {
         elapsedSeconds++;
         boolean evolving = zone.tickSecond();
@@ -425,7 +435,6 @@ public class Match {
                     || elapsedSeconds - participant.landedAtSecond() > grace;
             boolean damageAllowed = personalGraceDone && (!onlyAfterLanding || landed);
             zone.applyStorm(player, damageAllowed);
-            zone.showRing(player);
         }
 
         int max = plugin.configs().config().getInt("match.max-duration-seconds", 1800);
