@@ -128,9 +128,11 @@ zone:
   worldborder: false
   worldborder-margin: 24
   # parede de particulas que mostra a zona
-  wall-view-distance: 48
-  wall-spacing: 2.0
-  wall-height: 5
+  wall-view-distance: 64
+  wall-spacing: 1.5
+  wall-height: 8
+  # vinheta vermelha na tela de quem esta fora da zona
+  red-screen: true
 
 death:
   # ao morrer, os itens ficam num bau no local da morte
@@ -204,3 +206,9 @@ sounds:
 
 storage:
   autosave-seconds: 60
+
+presentation:
+  # tela estilo Fortnite ao sair do onibus: camera aerea olhando o mapa
+  enabled: true
+  seconds: 4
+  height: 70

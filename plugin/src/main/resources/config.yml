@@ -206,3 +206,9 @@ sounds:
 
 storage:
   autosave-seconds: 60
+
+presentation:
+  # tela estilo Fortnite ao sair do onibus: camera aerea olhando o mapa
+  enabled: true
+  seconds: 4
+  height: 70

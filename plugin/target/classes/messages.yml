@@ -44,7 +44,8 @@ match:
 zone:
   shrinking: "&e⚠ A SAFE ZONE esta diminuindo! (Fase %phase%/%total%)"
   waiting: "&7Proxima zona em &f%time%s &7(Fase %phase%/%total%)"
-  outside: "&c⚠ VOCE ESTA FORA DA ZONA! &7Distancia: &f%distance% blocos"
+  outside: "&c⚠ FORA DA ZONA! &7Volte &f%distance% blocos &e%direction%"
+  inside: "&a✔ Na zona &7| Parede a &f%edge% blocos &7| Zona %state% &7%time%s"
   bossbar-waiting: "&bSafe Zone &7| &fFase %phase%/%total% &7| &fEncolhe em %time%s &7| &fRaio %radius%"
   bossbar-shrinking: "&c⚠ ZONA FECHANDO &7| &fFase %phase%/%total% &7| &f%time%s &7| &fRaio %radius%"
   final: "&c&l⚠ ZONA FINAL!"
