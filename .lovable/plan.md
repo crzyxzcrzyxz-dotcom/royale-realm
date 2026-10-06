@@ -1,34 +1,17 @@
-# Correções da safe zone, itens, mapas e Battle Bus
+# Barreira customizada sem partículas
 
-## Objetivo
-Eliminar o dano incorreto dentro da safe zone, ampliar e tornar configurável a borda inicial, completar itens arremessáveis e o Grappler, permitir exclusão segura de mapas e melhorar a experiência visual do Battle Bus.
+## Resultado
+Substituir a parede de partículas por uma parede visual de vidro colorido, atravessável, sem alterar blocos do mapa e sem exigir pacote de recursos. Manter a zona redonda ou quadrada e os indicadores de distância.
 
 ## Implementação
-
-1. **Safe zone e barreira**
-   - Usar uma única geometria quadrada para dano e WorldBorder, pois a borda visual do Minecraft é quadrada; incluir tolerância interna configurável.
-   - Separar raio jogável do mapa e tamanho inicial da safe zone, com multiplicador/margem configurável e padrão um pouco maior.
-   - Impedir dano da própria WorldBorder e validar mundo, centro e fase antes de aplicar storm.
-
-2. **Mapas**
-   - Adicionar `/br deletar <mapa>` e alias em inglês, recusando exclusão durante partida nesse mapa.
-   - Remover o mapa do YAML, da rotação e do mapa forçado, persistir, recarregar e emitir mensagens claras.
-
-3. **Itens e loot**
-   - Refazer o Grappler para lançar um projétil visual de longo alcance e resolver o impacto pela trajetória configurada, sem depender do alcance de interação vanilla.
-   - Adicionar bola de fogo arremessável e mais utilitários configuráveis; todo item conceitualmente arremessável usará projétil e ativará no impacto.
-   - Validar encantamentos por compatibilidade com o item e limitar níveis ao máximo vanilla; itens não encantáveis não receberão bônus.
-   - Inserir os novos especiais nas tabelas de raridade adequadas.
-
-4. **Battle Bus e apresentação**
-   - Posicionar jogadores em assentos externos/superiores com câmera livre e vista do mapa, mantendo-os presos ao veículo até o salto.
-   - Adicionar animações configuráveis de embarque/partida, partículas e sons sem travar a câmera.
-
-5. **Validação e entrega**
-   - Compilar com Java 21/Maven, inspecionar o JAR e confirmar que recursos e classes atualizados estão empacotados.
-   - Copiar o JAR validado para download.
+- Remover a renderização de partículas da barreira e desvincular sua visibilidade das opções antigas de partículas.
+- Criar painéis visuais que acompanham o centro e o fechamento da safe, usando a mesma geometria do dano.
+- Limitar painéis por jogador e distância de renderização para controlar o custo; remover os painéis ao sair e ao finalizar a partida.
+- Adicionar configurações de material, alcance e limite de painéis, com padrões para configurações existentes.
+- Compilar com Java 21/Maven, inspecionar o JAR e entregar o arquivo atualizado.
 
 ## Detalhes técnicos
-- O cálculo da safe usará distância Chebyshev (`max(abs(dx), abs(dz))`) para coincidir com a WorldBorder quadrada.
-- Projéteis especiais serão identificados por PersistentDataContainer e terão efeitos sem dano indevido quando aplicável.
-- A exclusão remove apenas o registro do plugin; nunca apaga a pasta/mundo do servidor.
+- Usar entidades `BlockDisplay` de vidro colorido, sem colisão, gravidade ou persistência, visíveis apenas ao participante correspondente.
+- A parede cobre a altura do mundo; os painéis seguem o círculo por segmentos ou os lados do quadrado.
+- Desativar partículas no cliente não desativa `BlockDisplay`; mods que escondem entidades ainda podem ocultar a parede.
+- A aparência em jogo precisa ser confirmada num servidor Paper com cliente Minecraft; compilação não substitui esse teste.

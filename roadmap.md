@@ -1,6 +1,7 @@
 # Roadmap - Plugin Battle Royale
 
 ## Em andamento
+- [ ] Substituir a barreira de partículas por parede visual customizada sem partículas e entregar JAR validado
 - [x] Barreira visível de longe (parede alta + indicador de distância na actionbar)
 - [x] Baú de morte duplicando itens do jogador
 - [x] Reset real do mapa (blocos quebrados e colocados voltam ao original)
