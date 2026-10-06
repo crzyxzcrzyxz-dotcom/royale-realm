@@ -508,6 +508,79 @@ public class Match {
         participant.gliding(true);
         bus.eject(player);
         player.setGravity(true);
+        if (plugin.configs().config().getBoolean("presentation.enabled", true)) {
+            aerialView(player);
+            return;
+        }
+        startFreeFall(player);
+    }
+
+    /**
+     * Tela estilo Fortnite: ao sair do onibus a camera sobe e olha o mapa de cima
+     * (modo espectador, sem controle do corpo), mostra a safe zone desenhada no chao,
+     * titulo animado e contagem. Depois devolve o jogador ao ponto do salto planando.
+     */
+    private void aerialView(Player player) {
+        Location jumpPoint = player.getLocation().clone();
+        int seconds = Math.max(1, plugin.configs().config().getInt("presentation.seconds", 4));
+        double height = plugin.configs().config().getDouble("presentation.height", 70);
+        player.setGameMode(GameMode.SPECTATOR);
+        Location sky = jumpPoint.clone();
+        sky.setY(Math.min(jumpPoint.getWorld().getMaxHeight() + 60, jumpPoint.getY() + height));
+        sky.setPitch(90f);
+        player.teleport(sky);
+        markNoFallDamage(player.getUniqueId());
+        plugin.messages().sound(player, "bus-start");
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int tick = 0;
+            @Override
+            public void run() {
+                Participant participant = participants.get(player.getUniqueId());
+                if (!player.isOnline() || participant == null || !participant.alive()) {
+                    cancel();
+                    return;
+                }
+                tick++;
+                int left = seconds - tick / 20;
+                if (tick % 20 == 1) {
+                    String[] frames = {"&b&l✦ ESCOLHA ONDE CAIR ✦", "&3&l✧ ESCOLHA ONDE CAIR ✧"};
+                    plugin.messages().titleRaw(player, frames[(tick / 20) % 2],
+                            "&fSaltando em &e" + left + "s &7| &dZona: &f" + (int) zone.radius() + " blocos", 0, 25, 5);
+                    player.playSound(player.getLocation(), "block.note_block.hat", 1f, 1.2f + tick / 40f);
+                }
+                // camera desce devagar (efeito de zoom) e desenha a zona no chao
+                Location cam = player.getLocation();
+                cam.setY(cam.getY() - 0.12);
+                cam.setYaw(cam.getYaw() + 0.6f);
+                cam.setPitch(Math.max(55f, 90f - tick * 0.4f));
+                player.teleport(cam);
+                if (tick % 4 == 0) drawZoneFromSky(player);
+                if (tick >= seconds * 20) {
+                    cancel();
+                    player.setGameMode(GameMode.SURVIVAL);
+                    player.teleport(jumpPoint);
+                    plugin.messages().titleRaw(player, "&a&lSALTE!", "&7Plane ate o seu destino", 0, 20, 10);
+                    startFreeFall(player);
+                }
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+    private void drawZoneFromSky(Player player) {
+        Location c = zone.centerLocation();
+        double r = Math.max(4, zone.radius());
+        Particle.DustOptions dust = new Particle.DustOptions(org.bukkit.Color.fromRGB(150, 70, 255), 6f);
+        int points = (int) Math.min(240, Math.max(48, r));
+        for (int i = 0; i < points; i++) {
+            double a = Math.PI * 2 * i / points;
+            Location p = new Location(c.getWorld(), c.getX() + Math.cos(a) * r, 0, c.getZ() + Math.sin(a) * r);
+            if (player.getLocation().distanceSquared(p.clone().add(0, player.getLocation().getY(), 0)) > 250 * 250) continue;
+            p.setY(c.getWorld().getHighestBlockYAt(p) + 2);
+            player.spawnParticle(Particle.DUST, p, 1, 0, 0, 0, 0, dust);
+        }
+    }
+
+    private void startFreeFall(Player player) {
         double boost = plugin.configs().config().getDouble("elytra.jump-boost", 0.4);
         player.setVelocity(player.getLocation().getDirection().multiply(boost).setY(-0.2));
         giveElytra(player);
