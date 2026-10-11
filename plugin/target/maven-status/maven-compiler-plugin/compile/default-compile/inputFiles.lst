@@ -20,3 +20,5 @@
 /dev-server/plugin/src/main/java/com/smp/br/util/Keys.java
 /dev-server/plugin/src/main/java/com/smp/br/util/Text.java
 /dev-server/plugin/src/main/java/com/smp/br/zone/ZoneManager.java
+/dev-server/plugin/src/main/java/com/smp/br/zone/ZoneWallGeometry.java
+/dev-server/plugin/src/main/java/com/smp/br/zone/ZoneWallRenderer.java

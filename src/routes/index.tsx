@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Battle Royale — Plugin para Paper" },
+      { name: "description", content: "Projeto do plugin Battle Royale para Minecraft Paper, com safe zone customizada e itens especiais." },
+      { property: "og:title", content: "Battle Royale — Plugin para Paper" },
+      { property: "og:description", content: "Plugin Minecraft com partidas Battle Royale e barreira customizada sem partículas." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 

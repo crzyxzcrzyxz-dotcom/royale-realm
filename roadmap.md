@@ -1,7 +1,8 @@
 # Roadmap - Plugin Battle Royale
 
 ## Em andamento
-- [ ] Substituir a barreira de partículas por parede visual customizada sem partículas e entregar JAR validado
+- [x] Substituir a barreira de partículas por parede visual customizada sem partículas e entregar JAR validado (5 testes de geometria, Maven e integridade do JAR aprovados)
+- [ ] Validar aparência e travessia da nova parede em cliente Minecraft com partículas desativadas — bloqueado: não há servidor Paper/cliente Minecraft conectado ao ambiente
 - [x] Barreira visível de longe (parede alta + indicador de distância na actionbar)
 - [x] Baú de morte duplicando itens do jogador
 - [x] Reset real do mapa (blocos quebrados e colocados voltam ao original)

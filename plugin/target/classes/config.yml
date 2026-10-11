@@ -101,8 +101,6 @@ zone:
   damage: 2.0
   bossbar: true
   actionbar: true
-  particles: true
-  particle: CLOUD
   grace-seconds: 10
   damage-only-after-landing: true
   # margem antes de considerar o jogador fora (evita dano dentro da zona)
@@ -127,10 +125,15 @@ zone:
   # Desligada por padrao: a barreira do jogo e a customizada acima.
   worldborder: false
   worldborder-margin: 24
-  # parede de particulas que mostra a zona
-  wall-view-distance: 64
-  wall-spacing: 1.5
-  wall-height: 8
+  # Parede visual de entidades BlockDisplay: sem particulas e sem colisao.
+  # Cobre toda a altura do mundo, nao altera blocos nem precisa de resource pack.
+  # Configuracoes antigas zone.particles/effects.zone-ring nao ocultam esta parede.
+  wall:
+    enabled: true
+    material: PURPLE_STAINED_GLASS
+    view-distance: 96
+    panel-width: 4
+    max-panels-per-player: 128
   # vinheta vermelha na tela de quem esta fora da zona
   red-screen: true
 
