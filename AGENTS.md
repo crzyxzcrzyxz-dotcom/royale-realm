@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Render safe-zone boundaries through per-player nonpersistent BlockDisplay panels managed by ZoneWallRenderer, with pure geometry in ZoneWallGeometry; this avoids particle settings and map mutations while bounding entity counts and enabling regression tests.
