@@ -7,7 +7,6 @@ import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.block.Block;
@@ -16,17 +15,7 @@ import org.bukkit.util.Vector;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Safe Zone + Storm.
- *
- * IMPORTANTE: a zona e QUADRADA, exatamente igual a WorldBorder do Minecraft.
- * Isso elimina o bug historico de "tomar dano dentro da zona": antes o dano
- * usava um circulo e a barreira desenhada era um quadrado.
- *
- * A WorldBorder nunca e usada como parede: ela fica sempre no tamanho do mapa
- * (ou desligada), para que o jogador possa entrar e sair da zona quando quiser.
- * A zona em si e desenhada com particulas.
- */
+/** Safe zone with matching damage geometry and a non-colliding BlockDisplay wall. */
 public class ZoneManager {
 
     public enum Mode {WAITING, SHRINKING, FINAL}
@@ -50,10 +39,12 @@ public class ZoneManager {
 
     private final WorldBorder border;
     private final BossBar bossBar;
+    private final ZoneWallRenderer wallRenderer;
 
     public ZoneManager(BattleRoyalePlugin plugin, BRMap map) {
         this.plugin = plugin;
         this.map = map;
+        this.wallRenderer = new ZoneWallRenderer(plugin);
         this.border = Bukkit.createWorldBorder();
         this.bossBar = BossBar.bossBar(Text.comp("&bSafe Zone"), 1f, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
     }
@@ -90,7 +81,7 @@ public class ZoneManager {
     }
 
     /**
-     * A barreira e 100% do plugin (particulas + dano). A WorldBorder do Minecraft
+     * A barreira e 100% do plugin (BlockDisplay + dano). A WorldBorder do Minecraft
      * so entra como moldura opcional do MAPA (nunca da zona) e vem DESLIGADA,
      * porque ela e sempre quadrada e empurra o jogador.
      */
@@ -124,6 +115,7 @@ public class ZoneManager {
     }
 
     public void detach(Player player) {
+        wallRenderer.remove(player.getUniqueId());
         warned.remove(player.getUniqueId());
         player.setWorldBorder(null);
         player.hideBossBar(bossBar);
@@ -364,9 +356,6 @@ public class ZoneManager {
         warnScreen(player, true);
         if (!damageAllowed) return;
         plugin.messages().sound(player, "storm-damage");
-        if (plugin.configs().config().getBoolean("zone.particles", true)) {
-            player.getWorld().spawnParticle(particle(), location.clone().add(0, 1, 0), 14, 0.5, 1, 0.5, 0.02);
-        }
         player.damage(currentDamage());
     }
 
@@ -411,69 +400,9 @@ public class ZoneManager {
         }
     }
 
-    private Particle particle() {
-        try {
-            return Particle.valueOf(plugin.configs().config().getString("zone.particle", "CLOUD").toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            return Particle.CLOUD;
-        }
-    }
-
-    /**
-     * Desenha a PAREDE da zona perto do jogador, com a mesma geometria usada
-     * para o dano. Formato conforme "zone.shape": SQUARE ou CIRCLE.
-     */
+    /** The visual wall does not depend on zone.particles or effects.zone-ring. */
     public void showRing(Player player) {
-        if (!plugin.configs().config().getBoolean("zone.particles", true)) return;
-        if (!plugin.configs().config().getBoolean("effects.zone-ring", true)) return;
-        if (map.world() != null && !map.world().equals(player.getWorld())) return;
-        if (radius <= 0.5) return;
-
-        Location location = player.getLocation();
-        double view = Math.max(8, plugin.configs().config().getDouble("zone.wall-view-distance", 48));
-        double spacing = Math.max(0.5, plugin.configs().config().getDouble("zone.wall-spacing", 2.0));
-        int height = Math.max(1, plugin.configs().config().getInt("zone.wall-height", 5));
-
-        if (circular()) {
-            double step = spacing / Math.max(1.0, radius); // radianos por ponto
-            for (double angle = 0; angle < Math.PI * 2; angle += step) {
-                double x = center.getX() + Math.cos(angle) * radius;
-                double z = center.getZ() + Math.sin(angle) * radius;
-                drawWallPoint(player, location, x, z, view, height);
-            }
-            return;
-        }
-
-        double minX = center.getX() - radius;
-        double maxX = center.getX() + radius;
-        double minZ = center.getZ() - radius;
-        double maxZ = center.getZ() + radius;
-
-        for (double x = minX; x <= maxX; x += spacing) {
-            drawWallPoint(player, location, x, minZ, view, height);
-            drawWallPoint(player, location, x, maxZ, view, height);
-        }
-        for (double z = minZ; z <= maxZ; z += spacing) {
-            drawWallPoint(player, location, minX, z, view, height);
-            drawWallPoint(player, location, maxX, z, view, height);
-        }
-    }
-
-    private void drawWallPoint(Player player, Location from, double x, double z, double view, int height) {
-        double dx = x - from.getX();
-        double dz = z - from.getZ();
-        double dist2 = dx * dx + dz * dz;
-        if (dist2 > view * view) return;
-        // perto da parede ela fica mais VERMELHA e mais densa
-        boolean near = dist2 < 12 * 12;
-        Particle.DustOptions dust = new Particle.DustOptions(
-                near ? org.bukkit.Color.fromRGB(255, 60, 200) : org.bukkit.Color.fromRGB(150, 70, 255), near ? 2.2f : 1.8f);
-        int below = Math.max(2, height / 2);
-        for (int h = -below; h < height; h++) {
-            Location point = new Location(from.getWorld(), x, from.getY() + h * 1.2, z);
-            player.spawnParticle(Particle.DUST, point, near ? 2 : 1, 0.05, 0.25, 0.05, 0, dust);
-        }
-        player.spawnParticle(Particle.END_ROD, new Location(from.getWorld(), x, from.getY() + 1, z), 1, 0, 0.6, 0, 0);
+        wallRenderer.update(player, map.world(), circular(), center.getX(), center.getZ(), radius);
     }
 
     public double initialRadius() {
@@ -481,6 +410,7 @@ public class ZoneManager {
     }
 
     public void cleanup() {
+        wallRenderer.clear();
         Bukkit.getOnlinePlayers().forEach(this::detach);
     }
 }

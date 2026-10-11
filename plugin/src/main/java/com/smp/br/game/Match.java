@@ -291,6 +291,10 @@ public class Match {
     public void tick() {
         tickCounter++;
         boolean secondTick = tickCounter % 20 == 0;
+        // Persistent visual panels also cover boarding, flight and the aerial camera.
+        if (tickCounter % 5 == 0 && (state == GameState.BOARDING || state == GameState.BUS
+                || state == GameState.GLIDING || state == GameState.ACTIVE
+                || state == GameState.STORM || state == GameState.FINAL)) drawZoneWalls();
 
         switch (state) {
             case COUNTDOWN -> {
@@ -317,9 +321,6 @@ public class Match {
             }
             case ACTIVE, STORM, FINAL -> {
                 if (secondTick) tickGame();
-                // a parede e redesenhada a cada 5 ticks: particulas somem em <1s,
-                // desenhar so 1x por segundo deixava a barreira praticamente INVISIVEL
-                if (tickCounter % 5 == 0) drawZoneWalls();
             }
             case ENDING -> {
                 if (secondTick) {
@@ -554,7 +555,6 @@ public class Match {
                 cam.setYaw(cam.getYaw() + 0.6f);
                 cam.setPitch(Math.max(55f, 90f - tick * 0.4f));
                 player.teleport(cam);
-                if (tick % 4 == 0) drawZoneFromSky(player);
                 if (tick >= seconds * 20) {
                     cancel();
                     player.setGameMode(GameMode.SURVIVAL);
@@ -564,20 +564,6 @@ public class Match {
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
-    }
-
-    private void drawZoneFromSky(Player player) {
-        Location c = zone.centerLocation();
-        double r = Math.max(4, zone.radius());
-        Particle.DustOptions dust = new Particle.DustOptions(org.bukkit.Color.fromRGB(150, 70, 255), 6f);
-        int points = (int) Math.min(240, Math.max(48, r));
-        for (int i = 0; i < points; i++) {
-            double a = Math.PI * 2 * i / points;
-            Location p = new Location(c.getWorld(), c.getX() + Math.cos(a) * r, 0, c.getZ() + Math.sin(a) * r);
-            if (player.getLocation().distanceSquared(p.clone().add(0, player.getLocation().getY(), 0)) > 250 * 250) continue;
-            p.setY(c.getWorld().getHighestBlockYAt(p) + 2);
-            player.spawnParticle(Particle.DUST, p, 1, 0, 0, 0, 0, dust);
-        }
     }
 
     private void startFreeFall(Player player) {
