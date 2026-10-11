@@ -39,13 +39,18 @@ public final class ZoneWallRenderer {
         List<ZoneWallGeometry.Panel> panels = ZoneWallGeometry.panels(circle, cx, cz, radius,
                 viewer.getX(), viewer.getZ(), view, width, limit);
         List<BlockDisplay> displays = walls.computeIfAbsent(player.getUniqueId(), id -> new ArrayList<>());
-        displays.removeIf(display -> !display.isValid() || !display.getWorld().equals(world));
+        displays.removeIf(display -> {
+            if (display.isValid() && display.getWorld().equals(world)) return false;
+            display.remove();
+            return true;
+        });
         while (displays.size() > panels.size()) displays.remove(displays.size() - 1).remove();
         Material material = Material.matchMaterial(config.getString("zone.wall.material", "PURPLE_STAINED_GLASS"));
         if (material == null || !material.isBlock() || material.isAir()) material = Material.PURPLE_STAINED_GLASS;
         for (int i = 0; i < panels.size(); i++) {
             ZoneWallGeometry.Panel panel = panels.get(i);
-            Location at = new Location(world, panel.x(), world.getMinHeight(), panel.z());
+            // Keep entity tracking close to the viewer even at bus/elytra altitude.
+            Location at = new Location(world, panel.x(), viewer.getY(), panel.z());
             BlockDisplay display;
             if (i < displays.size()) {
                 display = displays.get(i);
@@ -77,7 +82,8 @@ public final class ZoneWallRenderer {
             display.setDisplayHeight(height * 2);
             display.setInterpolationDelay(0);
             display.setTransformation(new Transformation(
-                    new Vector3f((float) -panel.dx() / 2 - normalX * 0.04f, 0,
+                    new Vector3f((float) -panel.dx() / 2 - normalX * 0.04f,
+                            (float) (world.getMinHeight() - viewer.getY()),
                             (float) -panel.dz() / 2 - normalZ * 0.04f),
                     new Quaternionf().rotationY(angle), new Vector3f(length + 0.03f, height, 0.08f),
                     new Quaternionf()));
