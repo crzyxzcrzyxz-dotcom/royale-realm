@@ -53,10 +53,13 @@ specials:
     resistance-seconds: 12
   chug-jug:
     enabled: true
-    material: MILK_BUCKET
+    # nao use baldes/pocoes: o Minecraft "bebe" o item e estraga o efeito
+    material: HEART_OF_THE_SEA
     name: "&5&lCHUG JUG"
-    lore: ["&7Cura total + absorcao maxima apos 5s parado."]
+    lore: ["&7Clique direito e beba por 5s.", "&7Cura total + escudo maximo."]
     channel-ticks: 100
+    # distancia maxima que pode andar enquanto bebe
+    max-move-blocks: 4.0
     absorption-level: 4
     absorption-seconds: 240
   launch-pad:

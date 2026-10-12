@@ -50,6 +50,22 @@ public class MessageManager {
         Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(component));
     }
 
+    /** Envia so para quem esta na partida (jogando ou assistindo). */
+    public void broadcastMatch(String path, String... placeholders) {
+        String message = raw(path, placeholders);
+        if (message.isEmpty()) return;
+        Component component = Text.comp(prefix() + message);
+        Bukkit.getOnlinePlayers().stream()
+                .filter(p -> plugin.matches().isParticipating(p.getUniqueId()))
+                .forEach(p -> p.sendMessage(component));
+    }
+
+    public void soundMatch(String key) {
+        Bukkit.getOnlinePlayers().stream()
+                .filter(p -> plugin.matches().isParticipating(p.getUniqueId()))
+                .forEach(p -> sound(p, key));
+    }
+
     public void title(Player player, String titlePath, String subtitlePath, int fadeIn, int stay, int fadeOut,
                       String... placeholders) {
         Title title = Title.title(

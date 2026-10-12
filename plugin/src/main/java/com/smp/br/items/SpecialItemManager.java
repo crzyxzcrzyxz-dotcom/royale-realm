@@ -304,25 +304,54 @@ public class SpecialItemManager {
         return true;
     }
 
+    /**
+     * Chug Jug: o jogador bebe por alguns segundos (fica lento, pode andar devagar).
+     * Barra de progresso na actionbar. Cancela so se trocar de item, sair do mundo,
+     * morrer ou se afastar muito. O item so e gasto quando termina.
+     */
     private boolean useChugJug(Player player, ItemStack item) {
         ConfigurationSection section = plugin.configs().items().getConfigurationSection("specials.chug-jug");
-        if (section == null || channeling.containsKey(player.getUniqueId())) return true;
-        int ticks = section.getInt("channel-ticks", 100);
+        if (section == null) return true;
+        if (channeling.containsKey(player.getUniqueId())) {
+            plugin.messages().actionBar(player, "&eJa esta bebendo o Chug Jug...");
+            return true;
+        }
+        int ticks = Math.max(20, section.getInt("channel-ticks", 100));
+        double maxMove = section.getDouble("max-move-blocks", 4.0);
         Location origin = player.getLocation().clone();
+        int slot = player.getInventory().getHeldItemSlot();
+        addEffect(player, "slowness", ticks + 10, 2);
+        player.playSound(player.getLocation(), "entity.generic.drink", 1f, 0.8f);
         int taskId = new BukkitRunnable() {
             int elapsed;
             @Override public void run() {
-                if (!player.isOnline() || player.isDead() || player.getLocation().distanceSquared(origin) > 1.5) {
-                    channeling.remove(player.getUniqueId()); cancel(); return;
+                boolean moved = !player.getWorld().equals(origin.getWorld())
+                        || player.getLocation().distanceSquared(origin) > maxMove * maxMove;
+                boolean swapped = player.getInventory().getHeldItemSlot() != slot
+                        || !"chug-jug".equals(idOf(player.getInventory().getItemInMainHand()));
+                if (!player.isOnline() || player.isDead() || moved || swapped) {
+                    channeling.remove(player.getUniqueId());
+                    if (player.isOnline()) {
+                        player.removePotionEffect(PotionEffectType.SLOWNESS);
+                        plugin.messages().actionBar(player, "&cChug Jug cancelado");
+                    }
+                    cancel();
+                    return;
                 }
                 elapsed += 5;
-                player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1, 0), 4);
+                int bars = Math.min(20, elapsed * 20 / ticks);
+                plugin.messages().actionBar(player, "&5Chug Jug &a" + "|".repeat(bars) + "&7" + "|".repeat(20 - bars));
+                if (elapsed % 10 == 0) player.playSound(player.getLocation(), "entity.generic.drink", 0.8f, 1f);
                 if (elapsed < ticks) return;
                 heal(player, 100);
                 addEffect(player, "absorption", section.getInt("absorption-seconds", 240) * 20,
                         section.getInt("absorption-level", 4));
+                player.removePotionEffect(PotionEffectType.SLOWNESS);
                 removeOne(player, "chug-jug");
-                channeling.remove(player.getUniqueId()); cancel();
+                player.playSound(player.getLocation(), "entity.player.levelup", 1f, 1.4f);
+                plugin.messages().actionBar(player, "&a&lVida e escudo no maximo!");
+                channeling.remove(player.getUniqueId());
+                cancel();
             }
         }.runTaskTimer(plugin, 5, 5).getTaskId();
         channeling.put(player.getUniqueId(), taskId);
