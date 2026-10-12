@@ -48,6 +48,8 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.event.player.PlayerToggleFlightEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.inventory.ItemStack;
@@ -114,14 +116,48 @@ public class GameListener implements Listener {
         Player player = event.getPlayer();
         if (!plugin.matches().isParticipating(player.getUniqueId())) return;
         String bypass = plugin.configs().config().getString("commands.bypass-permission", "battleroyale.bypass");
-        if (bypass != null && player.hasPermission(bypass)) return;
-        String command = event.getMessage().substring(1).split(" ")[0].toLowerCase(Locale.ROOT);
-        for (String allowed : plugin.configs().config().getStringList("commands.whitelist")) {
-            if (allowed.equalsIgnoreCase(command)) return;
-        }
+        if (bypass != null && !bypass.isBlank() && player.hasPermission(bypass)) return;
+        if (isWhitelisted(event.getMessage())) return;
         event.setCancelled(true);
         plugin.messages().send(player, "commands.blocked");
         plugin.messages().sound(player, "error");
+    }
+
+    /** Aceita comando simples ("msg") ou com subcomando ("br leave"); ignora "plugin:" no inicio. */
+    private boolean isWhitelisted(String message) {
+        String body = message.startsWith("/") ? message.substring(1) : message;
+        String[] parts = body.trim().toLowerCase(Locale.ROOT).split("\\s+");
+        if (parts.length == 0 || parts[0].isEmpty()) return false;
+        int colon = parts[0].indexOf(':');
+        if (colon >= 0) parts[0] = parts[0].substring(colon + 1);
+        for (String allowed : plugin.configs().config().getStringList("commands.whitelist")) {
+            String[] want = allowed.trim().toLowerCase(Locale.ROOT).split("\\s+");
+            if (want.length == 0 || want.length > parts.length) continue;
+            boolean match = true;
+            for (int i = 0; i < want.length; i++) {
+                if (!want[i].equals(parts[i])) { match = false; break; }
+            }
+            if (match) return true;
+        }
+        return false;
+    }
+
+    /** Lancado por item: o servidor permite "voo" so para nao dar kick, mas o voo real e bloqueado. */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onToggleFlight(PlayerToggleFlightEvent event) {
+        Player player = event.getPlayer();
+        if (!plugin.matches().isParticipating(player.getUniqueId())) return;
+        GameMode mode = player.getGameMode();
+        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) return;
+        if (!event.isFlying()) return;
+        event.setCancelled(true);
+        player.setFlying(false);
+    }
+
+    /** Itens especiais nunca sao "bebidos/comidos" pelo Minecraft. */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onConsume(PlayerItemConsumeEvent event) {
+        if (plugin.specialItems().idOf(event.getItem()) != null) event.setCancelled(true);
     }
 
     // ------------------------------------------------------------------

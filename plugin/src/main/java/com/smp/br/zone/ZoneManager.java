@@ -269,7 +269,7 @@ public class ZoneManager {
                 seconds = totalSeconds;
                 startCenter = center.clone();
                 startRadius = radius;
-                plugin.messages().broadcast("zone.shrinking", "%phase%", String.valueOf(phase + 1), "%total%",
+                plugin.messages().broadcastMatch("zone.shrinking", "%phase%", String.valueOf(phase + 1), "%total%",
                         String.valueOf(totalPhases()));
                 plugin.messages().soundAll("zone-shrink");
             }
@@ -287,7 +287,7 @@ public class ZoneManager {
                 double limit = closeAll ? 0.05 : map.finalZoneRadius() + 0.01;
                 if (phase >= map.zonePhases() || radius <= limit) {
                     mode = Mode.FINAL;
-                    plugin.messages().broadcast("zone.final");
+                    plugin.messages().broadcastMatch("zone.final");
                     updateBossBar();
                     return false;
                 }
