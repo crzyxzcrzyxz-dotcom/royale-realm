@@ -1,6 +1,7 @@
 package com.smp.br.game;
 
 import com.smp.br.BattleRoyalePlugin;
+import com.smp.br.anticheat.AntiCheatBridge;
 import com.smp.br.bus.BusManager;
 import com.smp.br.map.BRMap;
 import com.smp.br.util.Keys;
@@ -10,6 +11,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -42,6 +44,9 @@ public class Match {
     private final BRMap map;
     private final Map<UUID, Participant> participants = new LinkedHashMap<>();
     private final Set<UUID> noFallDamage = new HashSet<>();
+    /** Jogadores vendo a camera aerea de abertura (ainda nao embarcados). */
+    private final Set<UUID> presenting = new HashSet<>();
+    private final AntiCheatBridge antiCheat;
 
     private final BusManager bus;
     private final ZoneManager zone;
@@ -62,6 +67,7 @@ public class Match {
         this.map = map;
         this.bus = new BusManager(plugin, map);
         this.zone = new ZoneManager(plugin, map);
+        this.antiCheat = new AntiCheatBridge(plugin);
     }
 
     // ------------------------------------------------------------------
@@ -129,6 +135,8 @@ public class Match {
 
     public void markNoFallDamage(UUID uuid) {
         noFallDamage.add(uuid);
+        // todo item que lanca o jogador passa por aqui: isenta o anti-cheat por alguns segundos
+        antiCheat.exempt(uuid, plugin.configs().config().getInt("anticheat.item-exempt-seconds", 6));
     }
 
     public boolean consumeNoFallDamage(UUID uuid) {
@@ -142,6 +150,7 @@ public class Match {
     public void beginCountdown() {
         state = GameState.COUNTDOWN;
         countdown = plugin.configs().config().getInt("match.join-seconds", 45);
+        applyDifficulty();
         plugin.regeneration().startTracking();
         // varre e prepara os baus enquanto os jogadores entram
         plugin.regeneration().scanContainers(map, found -> {
@@ -150,6 +159,19 @@ public class Match {
             plugin.getLogger().info("Baus encontrados: " + found + " | loot gerado em " + filled + " baus.");
         });
         announce();
+    }
+
+    private void applyDifficulty() {
+        if (map.world() == null) return;
+        String name = plugin.configs().config().getString("match.difficulty", "HARD");
+        Difficulty difficulty;
+        try {
+            difficulty = Difficulty.valueOf(name == null ? "HARD" : name.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("match.difficulty invalida: " + name + " (usando HARD)");
+            difficulty = Difficulty.HARD;
+        }
+        map.world().setDifficulty(difficulty);
     }
 
     public void announce() {
@@ -232,7 +254,7 @@ public class Match {
             player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(0, 1, 0), 15, 0.3, 1, 0.3, 0.02);
         }
         sendButtons(player);
-        plugin.messages().broadcast("join.broadcast", "%player%", player.getName(), "%players%",
+        plugin.messages().broadcastMatch("join.broadcast", "%player%", player.getName(), "%players%",
                 String.valueOf(participants.size()), "%max%",
                 String.valueOf(plugin.configs().config().getInt("match.max-players", 60)));
         return true;
@@ -256,7 +278,7 @@ public class Match {
             player.getWorld().spawnParticle(Particle.SMOKE, player.getLocation().add(0, 1, 0), 20, 0.4, 0.8, 0.4, 0.02);
         }
         if (state == GameState.COUNTDOWN) {
-            plugin.messages().broadcast("leave.broadcast", "%player%", player.getName(), "%players%",
+            plugin.messages().broadcastMatch("leave.broadcast", "%player%", player.getName(), "%players%",
                     String.valueOf(participants.size()), "%max%",
                     String.valueOf(plugin.configs().config().getInt("match.max-players", 60)));
         }
@@ -269,7 +291,10 @@ public class Match {
         Player player = Bukkit.getPlayer(uuid);
         plugin.specialItems().clear(uuid);
         noFallDamage.remove(uuid);
+        boolean wasPresenting = presenting.remove(uuid);
+        antiCheat.clear(uuid);
         if (player != null) {
+            if (wasPresenting) player.setGameMode(GameMode.SURVIVAL);
             bus.eject(player);
             zone.detach(player);
             player.setGravity(true);
@@ -291,6 +316,10 @@ public class Match {
     public void tick() {
         tickCounter++;
         boolean secondTick = tickCounter % 20 == 0;
+        if (secondTick) {
+            antiCheat.sweep();
+            preventFlyKick();
+        }
         // Persistent visual panels also cover boarding, flight and the aerial camera.
         if (tickCounter % 5 == 0 && (state == GameState.BOARDING || state == GameState.BUS
                 || state == GameState.GLIDING || state == GameState.ACTIVE
@@ -349,7 +378,9 @@ public class Match {
             Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(buttons));
         }
         if (countdown <= titleSeconds && countdown > 0) {
-            for (Player player : Bukkit.getOnlinePlayers()) {
+            for (Participant p : participants.values()) {
+                Player player = Bukkit.getPlayer(p.uuid());
+                if (player == null) continue;
                 plugin.messages().titleRaw(player,
                         plugin.messages().raw("match.countdown-title", "%time%", String.valueOf(countdown)),
                         plugin.messages().raw("match.countdown-subtitle"), 0, 25, 5);
@@ -369,6 +400,9 @@ public class Match {
                 cancel();
             } else {
                 boardingSeconds = Math.max(1, plugin.configs().config().getInt("bus.board-seconds", 5));
+                if (plugin.configs().config().getBoolean("presentation.enabled", true)) {
+                    boardingSeconds += Math.max(1, plugin.configs().config().getInt("presentation.seconds", 4));
+                }
                 startBus();
                 state = GameState.BOARDING;
             }
@@ -385,8 +419,8 @@ public class Match {
         if (boardingSeconds > 0) return;
         bus.depart();
         state = GameState.BUS;
-        plugin.messages().broadcast("match.bus-start");
-        plugin.messages().soundAll("bus-start");
+        plugin.messages().broadcastMatch("match.bus-start");
+        plugin.messages().soundMatch("bus-start");
     }
 
     /** Mantem os participantes no local configurado durante a fase de entrada. */
@@ -402,6 +436,24 @@ public class Match {
                     || player.getLocation().distanceSquared(start) > 400) {
                 player.teleport(start);
             }
+        }
+    }
+
+    /**
+     * O servidor pode ter allow-flight=false: ao ser lancado por um item o Minecraft
+     * expulsava com "Flying is not enabled". Liberamos a habilidade (sem kick) mas o
+     * voo de verdade e cancelado em GameListener.onToggleFlight.
+     */
+    private void preventFlyKick() {
+        if (!plugin.configs().config().getBoolean("anticheat.prevent-fly-kick", true)) return;
+        for (Participant participant : participants.values()) {
+            if (!participant.alive() || presenting.contains(participant.uuid())) continue;
+            Player player = Bukkit.getPlayer(participant.uuid());
+            if (player == null) continue;
+            GameMode mode = player.getGameMode();
+            if (mode != GameMode.SURVIVAL && mode != GameMode.ADVENTURE) continue;
+            if (!player.getAllowFlight()) player.setAllowFlight(true);
+            if (player.isFlying()) player.setFlying(false);
         }
     }
 
@@ -494,62 +546,60 @@ public class Match {
             players.add(player);
         }
         zone.start();
-        bus.start(players);
-        plugin.messages().broadcast("match.boarding");
+        // onibus nasce vazio; cada jogador embarca depois da camera de abertura
+        bus.start(List.of());
+        plugin.messages().broadcastMatch("match.boarding");
+        boolean intro = plugin.configs().config().getBoolean("presentation.enabled", true);
         for (Player player : players) {
-            plugin.messages().titleRaw(player, plugin.messages().raw("match.begin-title"),
-                    plugin.messages().raw("match.begin-subtitle"), 5, 40, 10);
+            antiCheat.hold(player.getUniqueId());
+            if (intro) introView(player);
+            else boardPlayer(player);
         }
     }
 
-    public void jump(Player player) {
+    private void boardPlayer(Player player) {
+        presenting.remove(player.getUniqueId());
         Participant participant = participants.get(player.getUniqueId());
-        if (participant == null || !participant.inBus()) return;
-        participant.inBus(false);
-        participant.gliding(true);
-        bus.eject(player);
-        player.setGravity(true);
-        if (plugin.configs().config().getBoolean("presentation.enabled", true)) {
-            aerialView(player);
-            return;
-        }
-        startFreeFall(player);
+        if (participant == null || !player.isOnline() || !bus.isRunning()) return;
+        player.setGameMode(GameMode.SURVIVAL);
+        bus.board(player);
+        plugin.messages().titleRaw(player, plugin.messages().raw("match.begin-title"),
+                plugin.messages().raw("match.begin-subtitle"), 5, 40, 10);
     }
 
     /**
-     * Tela estilo Fortnite: ao sair do onibus a camera sobe e olha o mapa de cima
-     * (modo espectador, sem controle do corpo), mostra a safe zone desenhada no chao,
-     * titulo animado e contagem. Depois devolve o jogador ao ponto do salto planando.
+     * Tela estilo Fortnite AO ENTRAR na partida: camera alta sobre o centro do mapa,
+     * girando e descendo devagar, com titulo animado. So depois o jogador embarca,
+     * entao ninguem ve o interior do onibus nesta animacao.
      */
-    private void aerialView(Player player) {
-        Location jumpPoint = player.getLocation().clone();
+    private void introView(Player player) {
+        org.bukkit.World world = map.world();
+        if (world == null) { boardPlayer(player); return; }
+        presenting.add(player.getUniqueId());
         int seconds = Math.max(1, plugin.configs().config().getInt("presentation.seconds", 4));
         double height = plugin.configs().config().getDouble("presentation.height", 70);
+        double y = Math.min(world.getMaxHeight() + 60, map.busHeight() + height);
+        Location sky = new Location(world, map.centerX(), y, map.centerZ(), 0f, 90f);
         player.setGameMode(GameMode.SPECTATOR);
-        Location sky = jumpPoint.clone();
-        sky.setY(Math.min(jumpPoint.getWorld().getMaxHeight() + 60, jumpPoint.getY() + height));
-        sky.setPitch(90f);
         player.teleport(sky);
-        markNoFallDamage(player.getUniqueId());
         plugin.messages().sound(player, "bus-start");
         new org.bukkit.scheduler.BukkitRunnable() {
             int tick = 0;
             @Override
             public void run() {
-                Participant participant = participants.get(player.getUniqueId());
-                if (!player.isOnline() || participant == null || !participant.alive()) {
+                if (!player.isOnline() || !presenting.contains(player.getUniqueId())
+                        || !participants.containsKey(player.getUniqueId())) {
                     cancel();
                     return;
                 }
                 tick++;
-                int left = seconds - tick / 20;
+                int left = Math.max(0, seconds - tick / 20);
                 if (tick % 20 == 1) {
-                    String[] frames = {"&b&l✦ ESCOLHA ONDE CAIR ✦", "&3&l✧ ESCOLHA ONDE CAIR ✧"};
+                    String[] frames = {"&b&l✦ " + map.displayName() + " ✦", "&3&l✧ " + map.displayName() + " ✧"};
                     plugin.messages().titleRaw(player, frames[(tick / 20) % 2],
-                            "&fSaltando em &e" + left + "s &7| &dZona: &f" + (int) zone.radius() + " blocos", 0, 25, 5);
+                            "&fEmbarcando em &e" + left + "s &7| &dZona: &f" + (int) zone.radius() + " blocos", 0, 25, 5);
                     player.playSound(player.getLocation(), "block.note_block.hat", 1f, 1.2f + tick / 40f);
                 }
-                // camera desce devagar (efeito de zoom) e desenha a zona no chao
                 Location cam = player.getLocation();
                 cam.setY(cam.getY() - 0.12);
                 cam.setYaw(cam.getYaw() + 0.6f);
@@ -557,13 +607,21 @@ public class Match {
                 player.teleport(cam);
                 if (tick >= seconds * 20) {
                     cancel();
-                    player.setGameMode(GameMode.SURVIVAL);
-                    player.teleport(jumpPoint);
-                    plugin.messages().titleRaw(player, "&a&lSALTE!", "&7Plane ate o seu destino", 0, 20, 10);
-                    startFreeFall(player);
+                    boardPlayer(player);
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+    public void jump(Player player) {
+        Participant participant = participants.get(player.getUniqueId());
+        if (participant == null || !participant.inBus()) return;
+        if (presenting.contains(player.getUniqueId())) boardPlayer(player);
+        participant.inBus(false);
+        participant.gliding(true);
+        bus.eject(player);
+        player.setGravity(true);
+        startFreeFall(player);
     }
 
     private void startFreeFall(Player player) {
@@ -607,6 +665,7 @@ public class Match {
         player.setFallDistance(0);
         removeTemporaryElytra(player);
         markNoFallDamage(player.getUniqueId());
+        antiCheat.unhold(player.getUniqueId(), 3);
         giveKit(player);
         plugin.messages().send(player, "match.landed");
         plugin.messages().sound(player, "land");
@@ -677,7 +736,7 @@ public class Match {
     }
 
     private void forceEjectAll() {
-        plugin.messages().broadcast("match.force-eject");
+        plugin.messages().broadcastMatch("match.force-eject");
         for (UUID uuid : new ArrayList<>(bus.passengers())) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) jump(player);
@@ -989,12 +1048,13 @@ public class Match {
     }
 
     public void cancel() {
-        plugin.messages().broadcast("match.cancelled");
+        plugin.messages().broadcastMatch("match.cancelled");
         for (UUID uuid : new ArrayList<>(participants.keySet())) {
             removeAndRestore(uuid);
         }
         bus.stop();
         zone.cleanup();
+        antiCheat.clearAll();
         state = GameState.REGENERATING;
         plugin.regeneration().restore(map, () -> {
             plugin.regeneration().stopTracking();
@@ -1011,6 +1071,7 @@ public class Match {
         participants.clear();
         bus.stop();
         zone.cleanup();
+        antiCheat.clearAll();
 
         boolean reset = plugin.configs().config().getBoolean("regeneration.enabled", true)
                 && plugin.configs().config().getBoolean("regeneration.reset-on-end", true);
@@ -1039,6 +1100,7 @@ public class Match {
         participants.clear();
         bus.stop();
         zone.cleanup();
+        antiCheat.clearAll();
         plugin.regeneration().stopTracking();
     }
 }

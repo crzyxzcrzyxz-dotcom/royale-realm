@@ -271,7 +271,7 @@ public class ZoneManager {
                 startRadius = radius;
                 plugin.messages().broadcastMatch("zone.shrinking", "%phase%", String.valueOf(phase + 1), "%total%",
                         String.valueOf(totalPhases()));
-                plugin.messages().soundAll("zone-shrink");
+                plugin.messages().soundMatch("zone-shrink");
             }
         } else {
             double progress = 1.0 - Math.max(0, seconds) / (double) totalSeconds;
