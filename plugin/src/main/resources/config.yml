@@ -64,7 +64,7 @@ return:
 commands:
   # UNICOS comandos liberados na partida (resto bloqueado). Aceita subcomandos, ex: "br leave".
   # "br join"/"br leave" ficam para os botoes do chat funcionarem.
-  whitelist: [msg, tell, w, "br join", "br leave", "br sair", "br entrar"]
+  whitelist: [msg, tell, w, "br join", "br leave", "br sair", "br entrar", "br time", "br team", "br equipa"]
   bypass-permission: battleroyale.bypass
 
 kit:

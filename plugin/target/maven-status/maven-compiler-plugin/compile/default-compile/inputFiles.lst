@@ -1,4 +1,5 @@
 /dev-server/plugin/src/main/java/com/smp/br/BattleRoyalePlugin.java
+/dev-server/plugin/src/main/java/com/smp/br/anticheat/AntiCheatBridge.java
 /dev-server/plugin/src/main/java/com/smp/br/bus/BusManager.java
 /dev-server/plugin/src/main/java/com/smp/br/commands/BRCommand.java
 /dev-server/plugin/src/main/java/com/smp/br/config/ConfigManager.java

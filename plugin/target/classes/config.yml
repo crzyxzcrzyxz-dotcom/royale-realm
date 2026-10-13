@@ -19,6 +19,8 @@ match:
   announce-at: []
   buttons-at: []
   countdown-title-seconds: 5
+  # dificuldade aplicada ao mundo do mapa no inicio de CADA partida
+  difficulty: HARD
   # false = o jogador continua onde estava ate o embarque
   teleport-on-join: false
   glide-timeout-seconds: 60
@@ -60,7 +62,9 @@ return:
     pitch: 0.0
 
 commands:
-  whitelist: [br, battleroyale, brl, msg, tell, r, help]
+  # UNICOS comandos liberados na partida (resto bloqueado). Aceita subcomandos, ex: "br leave".
+  # "br join"/"br leave" ficam para os botoes do chat funcionarem.
+  whitelist: [msg, tell, w, "br join", "br leave", "br sair", "br entrar", "br time", "br team", "br equipa"]
   bypass-permission: battleroyale.bypass
 
 kit:
@@ -86,6 +90,9 @@ bus:
   width: 7
   height-blocks: 4
   roof: true
+  # suavizacao do movimento (ticks de interpolacao) e arranque gradual (ticks)
+  smoothing-ticks: 3
+  acceleration-ticks: 60
   # visual
   block: LIGHT_BLUE_CONCRETE
   glass-block: LIGHT_BLUE_STAINED_GLASS
@@ -210,8 +217,17 @@ sounds:
 storage:
   autosave-seconds: 60
 
+anticheat:
+  # isenta do anti-cheat (GrimAC: grim.exempt) so durante onibus, camera, planagem e itens de impulso
+  exempt-enabled: true
+  exempt-permissions: [grim.exempt]
+  # segundos de isencao apos usar itens que lancam o jogador
+  item-exempt-seconds: 6
+  # evita o kick "Flying is not enabled" ao ser lancado (o voo continua bloqueado)
+  prevent-fly-kick: true
+
 presentation:
-  # tela estilo Fortnite ao sair do onibus: camera aerea olhando o mapa
+  # tela estilo Fortnite ao ENTRAR na partida (antes de embarcar): camera aerea olhando o mapa
   enabled: true
   seconds: 4
   height: 70
