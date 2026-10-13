@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.smp.br.zone.ZoneWallGeometryTest
 -------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.118 s -- in com.smp.br.zone.ZoneWallGeometryTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.081 s -- in com.smp.br.zone.ZoneWallGeometryTest

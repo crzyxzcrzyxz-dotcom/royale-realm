@@ -46,6 +46,7 @@ public class BusManager {
     private double travelled;
     private boolean running;
     private boolean moving;
+    private int movingTicks;
 
     public BusManager(BattleRoyalePlugin plugin, BRMap map) {
         this.plugin = plugin;
@@ -114,6 +115,7 @@ public class BusManager {
     /** O onibus comeca a andar. */
     public void depart() {
         moving = true;
+        movingTicks = 0;
     }
 
     private Location offsetLocation(Location base, Vector offset) {
@@ -129,7 +131,8 @@ public class BusManager {
             entity.setBlock(material.createBlockData());
             entity.setPersistent(false);
             entity.setBillboard(Display.Billboard.FIXED);
-            entity.setTeleportDuration(1);
+            // interpolacao de 3 ticks = mesma suavizacao que o cliente aplica aos assentos
+            entity.setTeleportDuration(Math.max(1, Math.min(59, cfgInt("bus.smoothing-ticks", 3))));
             entity.setViewRange(4.0f);
         });
         body.add(display);
@@ -243,7 +246,13 @@ public class BusManager {
     /** Chamado a cada tick pela partida. Retorna false quando a rota acabou. */
     public boolean tick() {
         if (!running) return false;
-        if (moving) travelled += speed;
+        if (moving) {
+            // arranque gradual (ease-in) para nao dar tranco na partida
+            int accel = Math.max(1, cfgInt("bus.acceleration-ticks", 60));
+            movingTicks++;
+            double factor = Math.min(1.0, movingTicks / (double) accel);
+            travelled += speed * factor * factor * (3 - 2 * factor) + (factor < 1 ? speed * 0.05 : 0);
+        }
         Location location = currentLocation();
         if (location == null) {
             running = false;
@@ -254,7 +263,7 @@ public class BusManager {
             for (int i = 0; i < body.size(); i++) {
                 move(body.get(i), offsetLocation(location, bodyOffsets.get(i)));
             }
-            if (plugin.configs().config().getBoolean("effects.bus-trail", true)) {
+            if (plugin.configs().config().getBoolean("effects.bus-trail", true) && movingTicks % 4 == 0) {
                 location.getWorld().spawnParticle(Particle.CLOUD, location.clone().subtract(0, 2.5, 0), 6, 1.2, 0.2,
                         1.2, 0.01);
                 location.getWorld().spawnParticle(Particle.END_ROD, location.clone().subtract(0, 2.0, 0), 2, 1.5, 0.2,
