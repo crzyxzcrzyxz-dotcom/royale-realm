@@ -1,6 +1,8 @@
 # Roadmap - Plugin Battle Royale
 
 ## Em andamento
+- [ ] Animação aérea ao entrar na partida (não ao saltar), sem alertas do Grim, sem kick de voo, só /msg liberado, Chug Jug corrigido, contagem só para o evento, ônibus mais fluido, dificuldade HARD
+- [ ] Escolher time com amigos em Duo/Trio/Squad, nomes de colegas coloridos, modo da partida por comando
 - [x] Substituir a barreira de partículas por parede visual customizada sem partículas e entregar JAR validado (5 testes de geometria, Maven e integridade do JAR aprovados)
 - [ ] Validar aparência e travessia da nova parede em cliente Minecraft com partículas desativadas — bloqueado: não há servidor Paper/cliente Minecraft conectado ao ambiente
 - [x] Barreira visível de longe (parede alta + indicador de distância na actionbar)
