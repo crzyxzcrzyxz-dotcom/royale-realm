@@ -100,3 +100,15 @@ special:
   cooldown: "&cAguarde antes de usar novamente."
 recovery:
   restored: "&aSeus itens do Battle Royale anterior foram restaurados com seguranca."
+
+teams:
+  assigned: "&7Voce esta na %team%&7. Jogue com amigos: &f/br time <numero|amigo>"
+  joined: "&aAgora voce esta na %team%&a!"
+  mate-joined: "&a%player% entrou na sua equipa."
+  full: "&cEssa equipa ja esta cheia."
+  already: "&eVoce ja esta nessa equipa."
+  invalid: "&cNumero de equipa invalido (1 a %max%)."
+  locked: "&cSo da para trocar de equipa antes do onibus partir."
+  solo: "&cA partida e SOLO: nao ha equipas."
+  friend-not-in: "&cEsse jogador nao esta no evento."
+  mode-changed: "&bModo da partida alterado para &f&l%mode%&b. Equipas redistribuidas."

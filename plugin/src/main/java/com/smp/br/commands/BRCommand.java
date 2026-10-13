@@ -1,9 +1,11 @@
 package com.smp.br.commands;
 
 import com.smp.br.BattleRoyalePlugin;
+import com.smp.br.game.GameState;
 import com.smp.br.game.Match;
 import com.smp.br.map.BRMap;
 import com.smp.br.util.Text;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -24,7 +26,7 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             "help", "join", "leave", "spectate", "start", "stop", "forcestart", "forceend", "reload", "status",
             "map", "setstart", "setbusstart", "setbusend", "setcenter", "setborder", "setzone", "setspawn",
             "regenerate", "reset", "loot", "debug", "criar", "create", "deletar", "delete", "canto1", "canto2",
-            "corner1", "corner2");
+            "corner1", "corner2", "time", "team", "equipa", "modo", "mode");
 
     private final BattleRoyalePlugin plugin;
 
@@ -63,12 +65,76 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             case "deletar", "delete" -> deleteMap(sender, args);
             case "canto1", "corner1" -> setCorner(sender, "a");
             case "canto2", "corner2" -> setCorner(sender, "b");
+            case "time", "team", "equipa" -> team(sender, args);
+            case "modo", "mode" -> mode(sender, args);
             default -> help(sender);
         }
         return true;
     }
 
     // ------------------------------------------------------------------
+
+    /** /br time [numero|amigo]: lista ou escolhe a equipa (Duo/Trio/Squad). */
+    private void team(CommandSender sender, String[] args) {
+        Player player = player(sender);
+        if (player == null) return;
+        Match match = plugin.matches().current();
+        if (match == null || !match.contains(player.getUniqueId())) {
+            plugin.messages().send(player, "leave.not-in");
+            return;
+        }
+        if (args.length < 2) {
+            match.listTeams(player);
+            return;
+        }
+        String target = args[1];
+        try {
+            match.chooseTeam(player, Integer.parseInt(target));
+            return;
+        } catch (NumberFormatException ignored) {
+            // nao e numero: tenta pelo nome do amigo
+        }
+        Player friend = Bukkit.getPlayerExact(target);
+        if (friend == null || friend.equals(player)) {
+            plugin.messages().send(player, "teams.friend-not-in");
+            return;
+        }
+        match.joinFriend(player, friend);
+    }
+
+    /** /br modo <solo|duo|trio|squad>: salva na config e aplica ao evento aberto. */
+    private void mode(CommandSender sender, String[] args) {
+        if (!has(sender, "battleroyale.start")) return;
+        Match match = plugin.matches().current();
+        if (args.length < 2) {
+            String current = match != null ? match.modeName()
+                    : plugin.configs().config().getString("match.mode", "SOLO");
+            plugin.messages().sendRaw(sender, "&7Modo atual: &b" + current + " &7| use &f/br modo <solo|duo|trio|squad>");
+            return;
+        }
+        applyMode(sender, args[1]);
+    }
+
+    private boolean applyMode(CommandSender sender, String value) {
+        int size = Match.parseMode(value);
+        if (size == 0) {
+            plugin.messages().sendRaw(sender, "&cModo invalido. Use solo, duo, trio ou squad.");
+            return false;
+        }
+        String name = new String[]{"", "SOLO", "DUO", "TRIO", "SQUAD"}[size];
+        plugin.configs().config().set("match.mode", name);
+        plugin.saveConfig();
+        Match match = plugin.matches().current();
+        if (match != null && match.state() == GameState.COUNTDOWN) {
+            match.setMode(size);
+            plugin.messages().sendRaw(sender, "&aModo do evento atual alterado para &b" + name + "&a.");
+        } else if (match != null && match.state() != GameState.WAITING) {
+            plugin.messages().sendRaw(sender, "&eModo salvo como &b" + name + "&e; vale a partir da proxima partida.");
+        } else {
+            plugin.messages().sendRaw(sender, "&aModo definido para &b" + name + "&a.");
+        }
+        return true;
+    }
 
     private void buttons(CommandSender sender) {
         Player player = player(sender);
@@ -89,9 +155,11 @@ public class BRCommand implements CommandExecutor, TabCompleter {
         plugin.messages().sendRaw(sender, " &f/br sair &8(/br leave) &7- sair do evento");
         plugin.messages().sendRaw(sender, " &f/br assistir &7- assistir apos ser eliminado");
         plugin.messages().sendRaw(sender, " &f/br botoes &7- mostrar os botoes ENTRAR/SAIR no chat");
+        plugin.messages().sendRaw(sender, " &f/br time [numero|amigo] &7- ver/escolher equipa (duo/trio/squad)");
         if (sender.hasPermission("battleroyale.admin") || sender.hasPermission("battleroyale.start")) {
             plugin.messages().sendRaw(sender, "&7Administracao:");
-            plugin.messages().sendRaw(sender, " &f/br start [mapa] &7- anunciar e iniciar um evento");
+            plugin.messages().sendRaw(sender, " &f/br start [mapa] [modo] &7- anunciar e iniciar um evento");
+            plugin.messages().sendRaw(sender, " &f/br modo <solo|duo|trio|squad> &7- modo da partida");
             plugin.messages().sendRaw(sender, " &f/br forcestart &7- pular a fase de entrada");
             plugin.messages().sendRaw(sender, " &f/br stop &7| &f/br forceend &7- encerrar a partida");
             plugin.messages().sendRaw(sender, " &f/br status &7- estado atual");
@@ -156,6 +224,7 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             plugin.messages().send(sender, "commands.map-unknown", "%map%", mapId);
             return;
         }
+        if (args.length > 2 && !applyMode(sender, args[2])) return;
         if (!plugin.matches().start(mapId)) {
             plugin.messages().send(sender, "match.already-running");
         }
@@ -515,6 +584,12 @@ public class BRCommand implements CommandExecutor, TabCompleter {
             result.addAll(List.of("list", "next", "set"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("start")) {
             result.addAll(plugin.maps().maps().keySet());
+        } else if ((args.length == 2 && (args[0].equalsIgnoreCase("modo") || args[0].equalsIgnoreCase("mode")))
+                || (args.length == 3 && args[0].equalsIgnoreCase("start"))) {
+            result.addAll(List.of("solo", "duo", "trio", "squad"));
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("time") || args[0].equalsIgnoreCase("team")
+                || args[0].equalsIgnoreCase("equipa"))) {
+            Bukkit.getOnlinePlayers().forEach(p -> result.add(p.getName()));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("map") && args[1].equalsIgnoreCase("set")) {
             result.addAll(plugin.maps().maps().keySet());
         }
