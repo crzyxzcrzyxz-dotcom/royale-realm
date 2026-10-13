@@ -61,6 +61,8 @@ public class Match {
     private int placementCounter;
     private UUID winner;
     private boolean lootReady;
+    /** Jogadores por equipa nesta partida (1 solo, 2 duo, 3 trio, 4 squad). */
+    private int teamSize;
 
     public Match(BattleRoyalePlugin plugin, BRMap map) {
         this.plugin = plugin;
@@ -68,6 +70,7 @@ public class Match {
         this.bus = new BusManager(plugin, map);
         this.zone = new ZoneManager(plugin, map);
         this.antiCheat = new AntiCheatBridge(plugin);
+        this.teamSize = parseMode(plugin.configs().config().getString("match.mode", "SOLO"));
     }
 
     // ------------------------------------------------------------------
@@ -236,12 +239,12 @@ public class Match {
         }
         plugin.playerData().prepareForMatch(player);
         Participant participant = new Participant(player.getUniqueId(), player.getName());
-        assignTeam(participant);
         participants.put(player.getUniqueId(), participant);
-        if (teamSize() > 1) {
-            player.displayName(Text.comp(participant.teamColor() + participant.teamSymbol() + " " + player.getName()));
-            player.playerListName(Text.comp(participant.teamColor() + participant.teamSymbol() + " " + player.getName()));
-        }
+        participant.team(-1);
+        assignTeam(participant);
+        applyTeamVisual(player, participant);
+        if (teamSize > 1) plugin.messages().send(player, "teams.assigned", "%team%",
+                participant.teamColor() + participant.teamSymbol() + " Equipa " + (participant.team() + 1));
         if (plugin.configs().config().getBoolean("match.teleport-on-join", false)) {
             Location start = map.start();
             if (start != null) player.teleport(start);
@@ -303,6 +306,7 @@ public class Match {
             plugin.playerData().restore(uuid);
             player.displayName(Component.text(player.getName()));
             player.playerListName(null);
+            clearTeamVisual(player);
         }
         if (participant != null && participant.spectating()) {
             participant.spectating(false);
@@ -1021,25 +1025,167 @@ public class Match {
     }
 
     private int teamSize() {
-        String mode = plugin.configs().config().getString("match.mode", "SOLO").toUpperCase();
-        return switch (mode) {
-            case "DUO" -> 2;
-            case "TRIO" -> 3;
-            case "SQUAD" -> 4;
-            default -> 1;
+        return teamSize;
+    }
+
+    /** SOLO/DUO/TRIO/SQUAD (ou 1-4). Retorna 0 se invalido. */
+    public static int parseMode(String mode) {
+        if (mode == null) return 1;
+        return switch (mode.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "SOLO", "1" -> 1;
+            case "DUO", "2" -> 2;
+            case "TRIO", "3" -> 3;
+            case "SQUAD", "4" -> 4;
+            default -> 0;
         };
     }
 
+    public String modeName() {
+        return switch (teamSize) {
+            case 2 -> "DUO";
+            case 3 -> "TRIO";
+            case 4 -> "SQUAD";
+            default -> "SOLO";
+        };
+    }
+
+    /** Troca o modo durante a fase de entrada e redistribui as equipas. */
+    public boolean setMode(int size) {
+        if (size < 1 || size > 4 || state != GameState.COUNTDOWN) return false;
+        teamSize = size;
+        List<Participant> all = new ArrayList<>(participants.values());
+        for (Participant p : all) p.team(-1);
+        for (Participant p : all) {
+            assignTeam(p);
+            Player player = Bukkit.getPlayer(p.uuid());
+            if (player != null) applyTeamVisual(player, p);
+        }
+        plugin.messages().broadcastMatch("teams.mode-changed", "%mode%", modeName());
+        return true;
+    }
+
+    private long membersOf(int team) {
+        return participants.values().stream().filter(p -> p.team() == team).count();
+    }
+
+    /** Coloca o jogador na primeira equipa com vaga (preenche buracos deixados por quem saiu). */
     private void assignTeam(Participant participant) {
-        int team = participants.size() / teamSize();
+        int team = 0;
+        while (membersOf(team) >= teamSize) team++;
+        setTeam(participant, team);
+    }
+
+    private void setTeam(Participant participant, int team) {
         participant.team(team);
         List<java.util.Map<?, ?>> styles = plugin.configs().config().getMapList("teams.styles");
+        String color = "&f";
+        String symbol = "✦";
         if (!styles.isEmpty()) {
             java.util.Map<?, ?> style = styles.get(team % styles.size());
-            Object color = style.get("color");
-            Object symbol = style.get("symbol");
-            participant.teamStyle(color == null ? "&f" : String.valueOf(color),
-                    symbol == null ? "✦" : String.valueOf(symbol));
+            if (style.get("color") != null) color = String.valueOf(style.get("color"));
+            if (style.get("symbol") != null) symbol = String.valueOf(style.get("symbol"));
+        }
+        participant.teamStyle(color, symbol);
+    }
+
+    /** /br time <numero>: escolhe uma equipa com vaga (so na fase de entrada). */
+    public boolean chooseTeam(Player player, int teamNumber) {
+        Participant participant = participants.get(player.getUniqueId());
+        if (participant == null) { plugin.messages().send(player, "leave.not-in"); return false; }
+        if (state != GameState.COUNTDOWN) { plugin.messages().send(player, "teams.locked"); return false; }
+        if (teamSize <= 1) { plugin.messages().send(player, "teams.solo"); return false; }
+        int team = teamNumber - 1;
+        int maxTeams = Math.max(1, (int) Math.ceil(plugin.configs().config().getInt("match.max-players", 100) / (double) teamSize));
+        if (team < 0 || team >= maxTeams) {
+            plugin.messages().send(player, "teams.invalid", "%max%", String.valueOf(maxTeams));
+            return false;
+        }
+        if (participant.team() == team) { plugin.messages().send(player, "teams.already"); return false; }
+        if (membersOf(team) >= teamSize) { plugin.messages().send(player, "teams.full"); return false; }
+        setTeam(participant, team);
+        applyTeamVisual(player, participant);
+        plugin.messages().send(player, "teams.joined", "%team%", participant.teamColor() + participant.teamSymbol()
+                + " Equipa " + teamNumber);
+        for (Participant mate : participants.values()) {
+            Player other = Bukkit.getPlayer(mate.uuid());
+            if (other != null && mate != participant && mate.team() == team) {
+                plugin.messages().send(other, "teams.mate-joined", "%player%", player.getName());
+            }
+        }
+        return true;
+    }
+
+    /** /br time <jogador>: entra na equipa de um amigo. */
+    public boolean joinFriend(Player player, Player friend) {
+        Participant other = participants.get(friend.getUniqueId());
+        if (other == null) { plugin.messages().send(player, "teams.friend-not-in"); return false; }
+        return chooseTeam(player, other.team() + 1);
+    }
+
+    public void listTeams(Player player) {
+        plugin.messages().sendRaw(player, "&b&lEQUIPAS &7(modo " + modeName() + ", " + teamSize + " por equipa)");
+        java.util.Map<Integer, List<String>> teams = new java.util.TreeMap<>();
+        java.util.Map<Integer, String> colors = new java.util.HashMap<>();
+        for (Participant p : participants.values()) {
+            teams.computeIfAbsent(p.team(), k -> new ArrayList<>()).add(p.name());
+            colors.put(p.team(), p.teamColor() + p.teamSymbol());
+        }
+        teams.forEach((team, names) -> plugin.messages().sendRaw(player, " " + colors.get(team) + " Equipa "
+                + (team + 1) + " &7(" + names.size() + "/" + teamSize + "): &f" + String.join(", ", names)));
+        plugin.messages().sendRaw(player, "&7Use &f/br time <numero> &7ou &f/br time <amigo>");
+    }
+
+    // ---------------- cores das equipas (nome no chat, TAB e acima da cabeca) ----------------
+
+    private static net.kyori.adventure.text.format.NamedTextColor namedColor(String legacy) {
+        char c = legacy != null && legacy.length() >= 2 ? Character.toLowerCase(legacy.charAt(1)) : 'f';
+        return switch (c) {
+            case '0' -> net.kyori.adventure.text.format.NamedTextColor.BLACK;
+            case '1' -> net.kyori.adventure.text.format.NamedTextColor.DARK_BLUE;
+            case '2' -> net.kyori.adventure.text.format.NamedTextColor.DARK_GREEN;
+            case '3' -> net.kyori.adventure.text.format.NamedTextColor.DARK_AQUA;
+            case '4' -> net.kyori.adventure.text.format.NamedTextColor.DARK_RED;
+            case '5' -> net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE;
+            case '6' -> net.kyori.adventure.text.format.NamedTextColor.GOLD;
+            case '7' -> net.kyori.adventure.text.format.NamedTextColor.GRAY;
+            case '8' -> net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY;
+            case '9' -> net.kyori.adventure.text.format.NamedTextColor.BLUE;
+            case 'a' -> net.kyori.adventure.text.format.NamedTextColor.GREEN;
+            case 'b' -> net.kyori.adventure.text.format.NamedTextColor.AQUA;
+            case 'c' -> net.kyori.adventure.text.format.NamedTextColor.RED;
+            case 'd' -> net.kyori.adventure.text.format.NamedTextColor.LIGHT_PURPLE;
+            case 'e' -> net.kyori.adventure.text.format.NamedTextColor.YELLOW;
+            default -> net.kyori.adventure.text.format.NamedTextColor.WHITE;
+        };
+    }
+
+    private void applyTeamVisual(Player player, Participant participant) {
+        clearTeamVisual(player);
+        if (teamSize <= 1) {
+            player.displayName(Component.text(player.getName()));
+            player.playerListName(null);
+            return;
+        }
+        String label = participant.teamColor() + participant.teamSymbol() + " " + player.getName();
+        player.displayName(Text.comp(label));
+        player.playerListName(Text.comp(label));
+        org.bukkit.scoreboard.Scoreboard board = Bukkit.getScoreboardManager().getMainScoreboard();
+        String name = "br_team_" + participant.team();
+        org.bukkit.scoreboard.Team team = board.getTeam(name);
+        if (team == null) team = board.registerNewTeam(name);
+        team.color(namedColor(participant.teamColor()));
+        team.prefix(Text.comp(participant.teamColor() + participant.teamSymbol() + " "));
+        team.setAllowFriendlyFire(plugin.configs().config().getBoolean("teams.friendly-fire", false));
+        team.setCanSeeFriendlyInvisibles(true);
+        team.addEntry(player.getName());
+    }
+
+    private void clearTeamVisual(Player player) {
+        org.bukkit.scoreboard.Scoreboard board = Bukkit.getScoreboardManager().getMainScoreboard();
+        org.bukkit.scoreboard.Team team = board.getEntryTeam(player.getName());
+        if (team != null && team.getName().startsWith("br_team_")) {
+            team.removeEntry(player.getName());
+            if (team.getEntries().isEmpty()) team.unregister();
         }
     }
 
