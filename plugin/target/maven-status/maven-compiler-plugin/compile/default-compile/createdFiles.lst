@@ -13,6 +13,7 @@ com/smp/br/items/SpecialItemManager.class
 com/smp/br/loot/Rarity.class
 com/smp/br/game/GameState.class
 com/smp/br/map/BRMap.class
+com/smp/br/anticheat/AntiCheatBridge.class
 com/smp/br/game/Match$1.class
 com/smp/br/map/MapManager.class
 com/smp/br/listeners/GameListener.class
